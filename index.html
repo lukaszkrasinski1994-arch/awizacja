@@ -1289,4 +1289,443 @@
 
     let finalWaste = loadingOnly ? '' : waste;
 
-    db.advices.
+    db.advices.push({ id: Date.now().toString(), date, vehicle, waste: finalWaste, installation, municipality, courses, returnLoad, loadingOnly });
+    
+    document.getElementById('adv-courses').value = 1;
+    document.getElementById('adv-return').checked = false;
+    document.getElementById('adv-loading-only').checked = false;
+    toggleWasteReq('adv');
+    saveDb();
+  }
+
+  function renderAdvices() {
+    const selectedDate = document.getElementById('adv-date').value;
+    const tbody = document.getElementById('advices-tbody');
+    tbody.innerHTML = '';
+
+    const filtered = db.advices.filter(a => a.date === selectedDate);
+    if(filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 24px; color:#666;">Brak awizacji na wybrany dzień. Zmień datę lub dodaj nową pozycję.</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(adv => {
+      const vObj = db.vehicles.find(v => v.sideNumber === adv.vehicle);
+      const regDisplay = vObj ? `<br><span style="font-size:11px; color:var(--muted); font-weight:normal;">${vObj.regNumber}</span>` : '';
+      
+      let returnBadge = '-';
+      let waButton = '';
+      let wasteDisplay = adv.waste;
+
+      if (adv.loadingOnly) {
+          wasteDisplay = `<span style="color:var(--muted); font-style:italic;">Sam załadunek</span>`;
+      }
+
+      if (adv.vehicle.toUpperCase().startsWith('R')) {
+          if (!adv.loadingOnly) {
+              returnBadge = adv.returnLoad ? '<span style="background: var(--alba-green-weak); color: var(--alba-green); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">TAK</span>' : '<span style="color:var(--muted); font-size: 11px;">NIE</span>';
+          }
+          waButton = `<button class="btn outline small" style="color:#25D366; border-color:#25D366; margin-right:4px;" onclick="openWaModal('${adv.id}')" title="Wyślij do kierowcy (WhatsApp)">💬</button>`;
+      }
+
+      tbody.innerHTML += `
+        <tr>
+          <td style="font-weight:700;">${adv.date}</td>
+          <td style="color:var(--alba-blue); font-weight:700;">${adv.vehicle} ${regDisplay}</td>
+          <td>${wasteDisplay}</td>
+          <td>${adv.installation}</td>
+          <td>${adv.municipality || '-'}</td>
+          <td style="text-align:center; font-weight:700;">${adv.courses || 1}</td>
+          <td style="text-align:center;">${returnBadge}</td>
+          <td style="text-align:right; white-space:nowrap;">
+            ${waButton}
+            <button class="btn outline small" onclick="openEditModal('${adv.id}')" style="margin-right: 4px;">Edytuj</button>
+            <button class="btn danger small" onclick="removeAdvice('${adv.id}')">Usuń</button>
+          </td>
+        </tr>`;
+    });
+  }
+
+  function removeAdvice(id) {
+    if(confirm('Usunąć tę awizację z kalendarza?')) {
+      db.advices = db.advices.filter(a => a.id !== id);
+      saveDb();
+    }
+  }
+
+  /* --- EDYCJA AWIZACJI --- */
+  function openEditModal(id) {
+      const adv = db.advices.find(a => a.id === id);
+      if (!adv) return;
+      currentEditId = id;
+
+      const instSelect = document.getElementById('edit-adv-installation');
+      const wasteSelect = document.getElementById('edit-adv-waste');
+      
+      instSelect.innerHTML = '<option value="">-- Wybierz --</option>';
+      db.installations.forEach(i => instSelect.innerHTML += `<option value="${i.name}">${i.name}</option>`);
+      
+      wasteSelect.innerHTML = buildWasteOptionsHtml(db.wastes);
+
+      document.getElementById('edit-adv-date').value = adv.date;
+      document.getElementById('edit-adv-vehicle').value = adv.vehicle;
+      document.getElementById('edit-adv-municipality').value = adv.municipality || '';
+      document.getElementById('edit-adv-courses').value = adv.courses || 1;
+      
+      onVehicleChange('edit-adv'); 
+      document.getElementById('edit-adv-return').checked = adv.returnLoad || false;
+      document.getElementById('edit-adv-loading-only').checked = adv.loadingOnly || false;
+      
+      instSelect.value = adv.installation;
+      
+      toggleWasteReq('edit-adv');
+      if (!adv.loadingOnly) {
+          wasteSelect.value = adv.waste;
+      }
+
+      updateDropdowns('edit-adv', 'inst');
+      if (!adv.loadingOnly) {
+          document.getElementById('edit-adv-waste').value = adv.waste;
+      }
+
+      document.getElementById('edit-advice-modal').classList.add('active');
+  }
+
+  function closeEditModal() {
+      document.getElementById('edit-advice-modal').classList.remove('active');
+      currentEditId = null;
+  }
+
+  function saveEditAdvice() {
+      if (!currentEditId) return;
+      
+      const date = document.getElementById('edit-adv-date').value;
+      const vehicle = document.getElementById('edit-adv-vehicle').value;
+      const waste = document.getElementById('edit-adv-waste').value;
+      const installation = document.getElementById('edit-adv-installation').value;
+      const municipality = document.getElementById('edit-adv-municipality').value;
+      const courses = parseInt(document.getElementById('edit-adv-courses').value) || 1;
+      
+      let isTractor = vehicle.toUpperCase().startsWith('R');
+      let returnLoad = isTractor ? document.getElementById('edit-adv-return').checked : false;
+      let loadingOnly = isTractor ? document.getElementById('edit-adv-loading-only').checked : false;
+
+      if(!date || !vehicle || !installation || (!isTractor && !municipality) || (!loadingOnly && !waste)) {
+        alert("Proszę uzupełnić wszystkie wymagane pola przed zapisaniem.");
+        return;
+      }
+
+      let finalWaste = loadingOnly ? '' : waste;
+
+      const advIndex = db.advices.findIndex(a => a.id === currentEditId);
+      if (advIndex !== -1) {
+          db.advices[advIndex] = {
+              id: currentEditId,
+              date, vehicle, waste: finalWaste, installation, municipality, courses, returnLoad, loadingOnly
+          };
+          saveDb();
+          closeEditModal();
+      }
+  }
+
+  /* --- PLANOWANIE MIESIĘCZNE --- */
+  function buildCalendarGrid() {
+      const monthInput = document.getElementById('sched-month').value;
+      if(!monthInput) return;
+      
+      const [year, month] = monthInput.split('-');
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const firstDayDate = new Date(year, month - 1, 1);
+      let firstDayIndex = firstDayDate.getDay(); 
+      firstDayIndex = firstDayIndex === 0 ? 6 : firstDayIndex - 1; 
+
+      const calDays = document.getElementById('cal-days');
+      calDays.innerHTML = '';
+      selectedDaysInMonth.clear();
+      document.getElementById('sched-frequency').value = '';
+
+      for (let i = 0; i < firstDayIndex; i++) {
+          const empty = document.createElement('div');
+          empty.className = 'cal-day empty';
+          calDays.appendChild(empty);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+          const d = document.createElement('div');
+          d.className = 'cal-day';
+          d.innerText = day;
+          d.dataset.day = day;
+          d.dataset.dow = (firstDayIndex + day - 1) % 7; 
+
+          d.onclick = () => toggleCalendarDay(d, day);
+          calDays.appendChild(d);
+      }
+  }
+
+  function toggleCalendarDay(element, dayNumber) {
+      if (selectedDaysInMonth.has(dayNumber)) {
+          selectedDaysInMonth.delete(dayNumber);
+          element.classList.remove('active');
+      } else {
+          selectedDaysInMonth.add(dayNumber);
+          element.classList.add('active');
+      }
+      document.getElementById('sched-frequency').value = ''; 
+  }
+
+  function applyFrequencyPattern() {
+      const patternId = document.getElementById('sched-frequency').value;
+      const allDays = document.querySelectorAll('#cal-days .cal-day:not(.empty)');
+      
+      selectedDaysInMonth.clear();
+      allDays.forEach(d => d.classList.remove('active'));
+
+      if (!patternId || patternId === 'clear') return;
+      const template = db.templates.find(t => t.id === patternId);
+      if(!template) return;
+
+      allDays.forEach(cell => {
+          const dow = parseInt(cell.dataset.dow); 
+          const dayNum = parseInt(cell.dataset.day);
+
+          if (template.days.includes(dow)) {
+              selectedDaysInMonth.add(dayNum);
+              cell.classList.add('active');
+          }
+      });
+  }
+
+  function saveBulkSchedule() {
+      if (selectedDaysInMonth.size === 0) { alert('Zaznacz w kalendarzu dni, w które auto ma wyjechać na ten rejon.'); return; }
+
+      const vehicle = document.getElementById('sched-vehicle').value;
+      const waste = document.getElementById('sched-waste').value;
+      const installation = document.getElementById('sched-installation').value;
+      const municipality = document.getElementById('sched-municipality').value;
+      const monthInput = document.getElementById('sched-month').value;
+      const courses = parseInt(document.getElementById('sched-courses').value) || 1;
+      
+      let isTractor = vehicle && vehicle.toUpperCase().startsWith('R');
+      let returnLoad = isTractor ? document.getElementById('sched-return').checked : false;
+      let loadingOnly = isTractor ? document.getElementById('sched-loading-only').checked : false;
+
+      if(!vehicle || !installation || (!isTractor && !municipality) || (!loadingOnly && !waste)) {
+          alert('Uzupełnij wszystkie wymagane dane trasy (Pojazd, Frakcja, Instalacja, Gmina).'); return;
+      }
+
+      let finalWaste = loadingOnly ? '' : waste;
+      const [year, month] = monthInput.split('-');
+      let addedCount = 0;
+
+      selectedDaysInMonth.forEach(day => {
+          const dd = String(day).padStart(2, '0');
+          const dateStr = `${year}-${month}-${dd}`;
+          const exists = db.advices.find(a => a.date === dateStr && a.vehicle === vehicle && a.waste === finalWaste && a.installation === installation && a.municipality === municipality);
+          
+          if (!exists) {
+              db.advices.push({ id: 'SCH_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 5), date: dateStr, vehicle, waste: finalWaste, installation, municipality, courses, returnLoad, loadingOnly });
+              addedCount++;
+          }
+      });
+
+      if (addedCount > 0) {
+          saveDb();
+          alert(`✅ Pomyślnie dodano ${addedCount} awizacji do kalendarza!`);
+          document.getElementById('sched-frequency').value = 'clear';
+          document.getElementById('sched-courses').value = 1;
+          document.getElementById('sched-return').checked = false;
+          document.getElementById('sched-loading-only').checked = false;
+          toggleWasteReq('sched');
+          applyFrequencyPattern();
+      } else { alert('Awizacje dla tych dni i dla tej trasy już istniały w systemie. Nie dodano duplikatów.'); }
+  }
+
+  /* --- GENERATOR MAILI I OUTLOOK --- */
+  function openBulkEmailModal() {
+    const selectedDate = document.getElementById('adv-date').value;
+    currentFilteredAdvices = db.advices.filter(a => a.date === selectedDate);
+
+    if(currentFilteredAdvices.length === 0) {
+      alert("Brak awizacji na wybrany dzień. Nie ma czego generować.");
+      return;
+    }
+
+    const emailTabs = document.getElementById('email-tabs');
+    emailTabs.innerHTML = '';
+
+    const normalAdvices = currentFilteredAdvices.filter(a => !a.vehicle.toUpperCase().startsWith('R'));
+    const tractorAdvices = currentFilteredAdvices.filter(a => a.vehicle.toUpperCase().startsWith('R'));
+
+    // ZAKŁADKI DLA ŚMIECIAREK
+    if(normalAdvices.length > 0) {
+        const btnAllN = document.createElement('div');
+        btnAllN.className = 'tab-btn email-tab-btn';
+        btnAllN.innerHTML = `Śmieciarki Zbiorcze (${normalAdvices.length})`;
+        btnAllN.onclick = () => selectEmailTab({type: 'NORMAL', inst: 'ALL'}, btnAllN);
+        emailTabs.appendChild(btnAllN);
+
+        const uniqueInstN = [...new Set(normalAdvices.map(a => a.installation))];
+        uniqueInstN.forEach(inst => {
+            const count = normalAdvices.filter(a => a.installation === inst).length;
+            const btnInst = document.createElement('div');
+            btnInst.className = 'tab-btn email-tab-btn';
+            btnInst.innerHTML = `Śmieciarki - ${inst} (${count})`;
+            btnInst.onclick = () => selectEmailTab({type: 'NORMAL', inst: inst}, btnInst);
+            emailTabs.appendChild(btnInst);
+        });
+    }
+
+    // ZAKŁADKI DLA CIĄGNIKÓW
+    if(tractorAdvices.length > 0) {
+        const uniqueInstT = [...new Set(tractorAdvices.map(a => a.installation))];
+        uniqueInstT.forEach(inst => {
+            const count = tractorAdvices.filter(a => a.installation === inst).length;
+            const btnInst = document.createElement('div');
+            btnInst.className = 'tab-btn email-tab-btn';
+            btnInst.innerHTML = `Ciągniki - ${inst} (${count})`;
+            btnInst.onclick = () => selectEmailTab({type: 'TRACTOR', inst: inst}, btnInst);
+            emailTabs.appendChild(btnInst);
+        });
+    }
+
+    // Automatyczny wybór pierwszej zakładki
+    const firstTab = emailTabs.querySelector('.email-tab-btn');
+    if (firstTab) firstTab.click();
+
+    document.getElementById('email-modal').classList.add('active');
+  }
+
+  function selectEmailTab(targetObj, clickedBtn) {
+    document.querySelectorAll('.email-tab-btn').forEach(b => b.classList.remove('active'));
+    clickedBtn.classList.add('active');
+    currentEmailTargetObj = targetObj;
+    
+    let listToRender = targetObj.type === 'NORMAL' 
+        ? currentFilteredAdvices.filter(a => !a.vehicle.toUpperCase().startsWith('R'))
+        : currentFilteredAdvices.filter(a => a.vehicle.toUpperCase().startsWith('R'));
+        
+    if (targetObj.inst !== 'ALL') {
+        listToRender = listToRender.filter(a => a.installation === targetObj.inst);
+    }
+
+    let mailText = "Dzień dobry,\n\n";
+
+    if (targetObj.type === 'NORMAL') {
+        mailText += "Proszę o awizację poniższych pojazdów";
+        mailText += targetObj.inst !== 'ALL' ? ` do instalacji ${targetObj.inst}:\n\n` : ":\n\n";
+        
+        listToRender.forEach((adv, index) => {
+            const vObj = db.vehicles.find(v => v.sideNumber === adv.vehicle);
+            const regNumber = vObj ? vObj.regNumber : adv.vehicle;
+            const coursesText = (adv.courses && adv.courses > 1) ? ` (Liczba kursów: ${adv.courses})` : '';
+            
+            if (targetObj.inst !== 'ALL') {
+                mailText += `${index + 1}. Pojazd ${regNumber}, odpad ${adv.waste} z gminy ${adv.municipality}${coursesText}.\n`;
+            } else {
+                mailText += `${index + 1}. Pojazd ${regNumber} do ${adv.installation}, odpad ${adv.waste} z gminy ${adv.municipality}${coursesText}.\n`;
+            }
+        });
+    } else {
+        // TRACTOR FORMAT
+        if (listToRender.length === 1) {
+            mailText += `Dzisiaj przyjedzie auto:\n\n`;
+        } else {
+            mailText += `Dzisiaj przyjadą poniższe auta:\n\n`;
+        }
+
+        listToRender.forEach((adv, index) => {
+            const vObj = db.vehicles.find(v => v.sideNumber === adv.vehicle);
+            const regNumber = vObj ? vObj.regNumber : adv.vehicle;
+            const bdo = db.settings.bdo || '.000002996';
+            
+            mailText += `Nr boczny WPO: ${adv.vehicle} | Nr rej.: ${regNumber} | nr BDO transportującego: ${bdo}\n\n`;
+            
+            if (adv.loadingOnly) {
+                mailText += `Pojazd podstawi się na załadunek selektywnej.\n\n`;
+            } else {
+                let returnText = adv.returnLoad ? ", podstawi się również do załadunku selektywnej." : ".";
+                mailText += `Odpad ${adv.waste}${returnText}\n\n`;
+            }
+        });
+    }
+
+    document.getElementById('email-content').value = mailText.trim();
+  }
+
+  function closeModal() { document.getElementById('email-modal').classList.remove('active'); }
+
+  function copyEmail() {
+    const el = document.getElementById('email-content');
+    el.select();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(el.value).then(() => {
+        const btn = document.querySelector('.modal .btn.outline:nth-child(2)');
+        const origText = btn.innerHTML;
+        btn.innerHTML = "✅ Skopiowano!";
+        setTimeout(() => { btn.innerHTML = origText; }, 2000);
+      });
+    } else document.execCommand('copy');
+  }
+
+  function openMailClient() {
+      const content = document.getElementById('email-content').value;
+      const date = document.getElementById('adv-date').value;
+      
+      let toEmail = '';
+      let subject = '';
+      
+      const typeLabel = currentEmailTargetObj.type === 'NORMAL' ? 'Śmieciarki' : 'Ciągniki';
+      
+      if (currentEmailTargetObj.inst === 'ALL') {
+          subject = `Awizacje zbiorcze WPO ALBA (${typeLabel}) - ${date}`;
+      } else {
+          subject = `Awizacja pojazdów WPO ALBA (${typeLabel}) - ${currentEmailTargetObj.inst} - ${date}`;
+          // POBIERANIE ADRESU E-MAIL Z BAZY
+          const instObj = db.installations.find(i => i.name === currentEmailTargetObj.inst);
+          if (instObj && instObj.email) {
+              toEmail = instObj.email.replace(/\s*[;,]\s*/g, ';');
+          }
+      }
+
+      const mailtoLink = `mailto:${toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content)}`;
+      window.location.href = mailtoLink;
+  }
+
+  function downloadOutlookEml() {
+      const content = document.getElementById('email-content').value;
+      const date = document.getElementById('adv-date').value;
+      
+      let toEmail = '';
+      let subject = '';
+      
+      const typeLabel = currentEmailTargetObj.type === 'NORMAL' ? 'Śmieciarki' : 'Ciągniki';
+      
+      if (currentEmailTargetObj.inst === 'ALL') {
+          subject = `Awizacje zbiorcze WPO ALBA (${typeLabel}) - ${date}`;
+      } else {
+          subject = `Awizacja pojazdów WPO ALBA (${typeLabel}) - ${currentEmailTargetObj.inst} - ${date}`;
+          // POBIERANIE ADRESU E-MAIL Z BAZY
+          const instObj = db.installations.find(i => i.name === currentEmailTargetObj.inst);
+          if (instObj && instObj.email) {
+              toEmail = instObj.email.replace(/\s*[;,]\s*/g, ', ');
+          }
+      }
+
+      const encodedSubject = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+      const emlContent = `To: ${toEmail}\r\nSubject: ${encodedSubject}\r\nX-Unsent: 1\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${content}`;
+
+      const blob = new Blob([emlContent], { type: 'message/rfc822' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${subject.replace(/[^a-zA-Z0-9\s-]/g, '_').trim()}.eml`; 
+      
+      document.body.appendChild(a);
+      a.click();
+      
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>
