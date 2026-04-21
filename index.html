@@ -8,288 +8,144 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-  
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     :root {
-      --bg: #f8fafc; --card-bg: #ffffff; --fg: #1e293b; --muted: #64748b;
-      --alba-blue: #132b5e; --alba-green: #2fa13e; --err: #ef4444; --border: #e2e8f0;
+      --bg: #ffffff; 
+      --fg: #222222; 
+      --muted: #555555;
+      --alba-blue: #132b5e;       
+      --alba-green: #2fa13e;      
+      --alba-blue-weak: rgba(19, 43, 94, 0.06); 
+      --alba-green-weak: rgba(47, 161, 62, 0.1);
+      --err: #dc2626; 
+      --field-border: #cbd5e1;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Open Sans', sans-serif; background: var(--bg); color: var(--fg); padding-bottom: 60px; }
-    header { background: white; border-bottom: 4px solid var(--alba-blue); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .header-wrap { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; }
-    header h1 { font-family: 'Montserrat', sans-serif; font-size: 20px; color: var(--alba-blue); border-left: 2px solid var(--border); padding-left: 20px; }
-    header img { height: 40px; }
     
-    main { max-width: 1400px; margin: 30px auto; padding: 0 20px; display: none; }
-    .card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-    .title { font-family: 'Montserrat', sans-serif; font-weight: 800; color: var(--alba-blue); font-size: 18px; margin-bottom: 20px; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Open Sans', sans-serif; margin: 0; background: #f8fafc; color: var(--fg); padding-bottom: 80px; }
     
-    .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
-    .tab-btn { flex: 1; padding: 15px; background: white; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-weight: 700; text-transform: uppercase; font-size: 12px; transition: 0.2s; }
-    .tab-btn.active { background: var(--alba-blue); color: white; border-color: var(--alba-blue); }
+    header { background: var(--bg); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-bottom: 4px solid var(--alba-blue); }
+    header .topbar { height: 6px; background: var(--alba-green); }
+    header .wrap { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; }
+    .header-left { display: flex; align-items: center; gap: 24px; }
+    header h1 { font-family: 'Montserrat', sans-serif; margin: 0; font-size: 22px; line-height: 1.2; font-weight: 800; color: var(--alba-blue); letter-spacing: -0.3px; border-left: 2px solid var(--field-border); padding-left: 24px; }
+    header img { height: 46px; object-fit: contain; }
+    
+    .header-right { text-align: right; display: flex; flex-direction: row; align-items: center; gap: 20px;}
+    .clock-container { display: flex; flex-direction: column; align-items: flex-end;}
+    #clock-time { font-family: 'Montserrat', sans-serif; font-size: 24px; font-weight: 800; color: var(--alba-blue); line-height: 1; transition: color 0.3s; }
+    .clock-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    
+    main { padding: 30px 20px; max-width: 1400px; margin: 0 auto; display: none; }
 
-    input, select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
-    label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; display: block; }
+    .card { background: #fff; border: 1px solid var(--field-border); border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); position: relative; }
+    .card .card-top { height: 6px; background: linear-gradient(90deg, var(--alba-blue) 50%, var(--alba-green) 50%); border-radius: 8px 8px 0 0; margin: -24px -24px 20px -24px; }
+    
+    label { font-family: 'Montserrat', sans-serif; display: block; margin-bottom: 8px; color: var(--alba-blue); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    input[type="text"], input[type="number"], input[type="date"], input[type="month"], input[type="password"], input[type="email"], select, textarea { width: 100%; padding: 10px; background: #fff; color: var(--fg); border: 1px solid var(--field-border); border-radius: 8px; font-family: inherit; font-size: 14px; transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--alba-green); box-shadow: 0 0 0 3px var(--alba-green-weak); }
+    input:disabled, select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+    select optgroup { font-family: 'Montserrat', sans-serif; font-weight: 700; color: var(--alba-blue); font-style: normal; }
+    select option { font-family: 'Open Sans', sans-serif; font-weight: 400; color: var(--fg); padding: 4px; }
+    
+    .row-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 16px; }
+    .row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 
-    .btn { padding: 12px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; text-transform: uppercase; font-size: 12px; display: inline-flex; align-items: center; gap: 8px; }
-    .btn-blue { background: var(--alba-blue); color: white; }
-    .btn-green { background: var(--alba-green); color: white; }
-    .btn-outline { background: transparent; border: 2px solid var(--alba-blue); color: var(--alba-blue); }
+    .btn { font-family: 'Montserrat', sans-serif; background: var(--alba-green); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;}
+    .btn:hover { background: #258031; transform: translateY(-1px); box-shadow: 0 4px 8px var(--alba-green-weak); }
+    .btn.outline { background: #fff; color: var(--alba-blue); border: 2px solid var(--alba-blue); }
+    .btn.outline:hover { background: var(--alba-blue-weak); color: var(--alba-blue); }
+    .btn.blue { background: var(--alba-blue); color: #fff; }
+    .btn.blue:hover { background: #0c1b3d; }
+    .btn.small { padding: 8px 16px; font-size: 12px; border-radius: 6px; }
+    .btn.danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .btn.danger:hover { background: #fca5a5; color: #7f1d1d; }
 
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th { background: #f1f5f9; text-align: left; padding: 12px; font-size: 12px; color: var(--muted); }
-    td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .title { font-family: 'Montserrat', sans-serif; font-weight: 800; color: var(--alba-blue); font-size: 20px; margin-bottom: 16px; }
 
-    #login-screen { position: fixed; inset: 0; background: #f1f5f9; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-    .login-box { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 350px; text-align: center; border-top: 5px solid var(--alba-blue); }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; margin-top: 16px; }
+    thead tr th { font-family: 'Montserrat', sans-serif; background: var(--alba-blue); color: #fff; padding: 14px 12px; text-align: left; font-weight: 600; font-size: 12px; letter-spacing: 0.3px; }
+    thead tr th:first-child { border-top-left-radius: 8px; }
+    thead tr th:last-child { border-top-right-radius: 8px; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody tr:hover { background: var(--alba-blue-weak); }
+    th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
 
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
-    .modal { background: white; padding: 30px; border-radius: 12px; width: 800px; max-height: 90vh; overflow-y: auto; }
-    .modal-tabs { display: flex; gap: 5px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 5px; }
+    .tabs { display: flex; gap: 12px; margin-bottom: 24px; }
+    .tab-btn { flex: 1; text-align: center; padding: 16px; background: #fff; border: 2px solid var(--field-border); border-radius: 8px; font-family: 'Montserrat', sans-serif; font-weight: 700; color: var(--muted); cursor: pointer; transition: 0.2s; text-transform: uppercase; font-size: 13px; }
+    .tab-btn:hover { border-color: var(--alba-blue); color: var(--alba-blue); }
+    .tab-btn.active { background: var(--alba-blue); color: #fff; border-color: var(--alba-blue); box-shadow: 0 4px 12px rgba(19, 43, 94, 0.2); }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(3px); }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #fff; padding: 30px; border-radius: 12px; width: 100%; max-width: 850px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 6px solid var(--alba-green); max-height: 90vh; overflow-y: auto; }
+    .modal textarea { height: 260px; resize: none; margin-bottom: 16px; line-height: 1.5; font-size: 14px; }
+    .modal-small { max-width: 500px; }
+
+    .list-container { max-height: 300px; overflow-y: auto; border: 1px solid var(--field-border); border-radius: 8px; margin-top: 12px; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; }
+    .list-item:last-child { border-bottom: none; }
+    .list-item:nth-child(even) { background: #f8fafc; }
+
+    .flex-group { display: flex; gap: 8px; align-items: flex-end; }
+    .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 16px; }
+    .cal-header { text-align: center; font-family: 'Montserrat', sans-serif; font-weight: 700; color: var(--alba-blue); font-size: 12px; text-transform: uppercase; padding-bottom: 8px; border-bottom: 2px solid var(--alba-blue-weak); }
+    .cal-day { border: 2px solid var(--field-border); border-radius: 8px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-weight: 600; font-size: 16px; position: relative; user-select: none; }
+    .cal-day:hover:not(.empty) { border-color: var(--alba-green); background: var(--alba-green-weak); }
+    .cal-day.empty { background: transparent; border-color: transparent; cursor: default; }
+    .cal-day.active { background: var(--alba-green); border-color: var(--alba-green); color: #fff; box-shadow: 0 4px 10px rgba(47, 161, 62, 0.3); }
+    .cal-day.active::after { content: '✓'; position: absolute; top: 4px; right: 6px; font-size: 12px; font-weight: 800; }
+
+    .checkbox-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--fg); cursor: pointer; padding: 4px 0;}
+    .checkbox-item input { width: 18px; height: 18px; cursor: pointer; margin: 0; }
+    
+    .scrollable-checkbox-list { max-height: 250px; overflow-y: auto; padding: 10px; border: 1px solid var(--field-border); border-radius: 6px; background: #fff; display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    
+    details.waste-group { border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 4px; background: #f8fafc; }
+    details.waste-group summary { padding: 10px; font-weight: 700; font-size: 13px; color: var(--alba-blue); cursor: pointer; list-style: none; user-select: none; display: flex; align-items: center; }
+    details.waste-group summary::-webkit-details-marker { display: none; }
+    details.waste-group summary::before { content: '▶'; font-size: 10px; margin-right: 8px; color: var(--alba-green); transition: 0.2s; }
+    details.waste-group[open] summary::before { transform: rotate(90deg); }
+    details.waste-group .waste-group-content { padding: 10px; border-top: 1px solid #e2e8f0; background: #fff; border-radius: 0 0 6px 6px; }
+
+    .btn-wa { background: #fff; color: #25D366; border: 2px solid #25D366; font-weight: bold; }
+    .btn-wa:hover { background: #25D366; color: #fff; }
+
+    /* EKRAN LOGOWANIA */
+    #login-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center;
+    }
+    .login-box {
+        background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        width: 100%; max-width: 400px; text-align: center; border-top: 6px solid var(--alba-blue);
+    }
+    .login-box img { height: 60px; margin-bottom: 20px; }
+    .login-box .title { margin-bottom: 24px; font-size: 22px; color: var(--alba-blue); font-weight: 800; font-family: 'Montserrat', sans-serif;}
+    .error-msg { color: var(--err); font-size: 13px; font-weight: 600; margin-top: 12px; min-height: 20px;}
   </style>
 </head>
 <body>
 
   <div id="login-screen">
-    <div class="login-box">
-      <img src="https://www.alba.com.pl/download/17.jpg" style="height:50px; margin-bottom:20px;">
-      <div class="title">Logowanie Dyspozytora</div>
-      <input type="email" id="log-email" placeholder="E-mail">
-      <input type="password" id="log-pass" placeholder="Hasło">
-      <button class="btn btn-blue" style="width:100%" onclick="login()">Zaloguj się</button>
-      <p id="log-err" style="color:red; font-size:12px; margin-top:10px;"></p>
-    </div>
-  </div>
-
-  <header>
-    <div class="header-wrap">
-      <div style="display:flex; align-items:center;">
-        <img src="https://www.alba.com.pl/download/17.jpg">
-        <h1>System Awizacji WPO</h1>
-      </div>
-      <div id="user-info" style="font-size:12px; font-weight:700;">
-        <span id="clock" style="margin-right:20px; font-size:18px; color:var(--alba-blue)">00:00:00</span>
-        <button class="btn btn-outline" style="padding:5px 10px" onclick="logout()">Wyloguj</button>
-      </div>
-    </div>
-  </header>
-
-  <main id="app">
-    <div class="tabs">
-      <button class="tab-btn active" onclick="showView('day')">Podgląd Dnia</button>
-      <button class="tab-btn" onclick="showView('admin')">Panel Administratora</button>
-    </div>
-
-    <div id="view-day" class="view">
-      <div class="card">
-        <div class="title">Nowa Awizacja</div>
-        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px;">
-          <div><label>Data</label><input type="date" id="add-date"></div>
-          <div><label>Pojazd</label><select id="add-veh"></select></div>
-          <div><label>Instalacja</label><select id="add-inst"></select></div>
-          <div><label>Kod Odpadu</label><input type="text" id="add-waste" placeholder="np. 20 03 01"></div>
-        </div>
-        <button class="btn btn-blue" onclick="addAdvice()">Zapisz Awizację</button>
-      </div>
-
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="title">Lista Awizacji</div>
-            <button class="btn btn-green" onclick="openEmailModal()">✉️ Generuj Maile</button>
-        </div>
-        <table>
-          <thead><tr><th>Pojazd</th><th>Instalacja</th><th>Kod</th><th>Akcja</th></tr></thead>
-          <tbody id="adv-list"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div id="view-admin" class="view" style="display:none">
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-        <div class="card">
-          <div class="title">Zarządzaj Instalacjami</div>
-          <label>Nazwa Instalacji</label><input type="text" id="adm-inst-name" placeholder="np. GAĆ">
-          <label>Email do awizacji</label><input type="text" id="adm-inst-mail" placeholder="biuro@gac.pl; waga@gac.pl">
-          <button class="btn btn-blue" onclick="addAdminInst()">Dodaj Instalację</button>
-          <div id="adm-inst-list" style="margin-top:20px"></div>
-        </div>
-        <div class="card">
-            <div class="title">Zarządzaj Pojazdami</div>
-            <label>Numer Boczny</label><input type="text" id="adm-veh-side" placeholder="B118">
-            <label>Numer Rejestracyjny</label><input type="text" id="adm-veh-reg" placeholder="DW 12345">
-            <button class="btn btn-blue" onclick="addAdminVeh()">Dodaj Pojazd</button>
-            <div id="adm-veh-list" style="margin-top:20px"></div>
+      <div class="login-box">
+          <img alt="ALBA – logo" src="https://www.alba.com.pl/download/17.jpg" />
+          <div class="title">Logowanie Dyspozytora</div>
+          <div style="text-align: left; margin-bottom: 16px;">
+              <input type="email" id="auth-email" placeholder="E-mail">
           </div>
-      </div>
-    </div>
-  </main>
-
-  <div class="modal-overlay" id="email-modal">
-    <div class="modal">
-      <div class="title">Generator Maili</div>
-      <div class="modal-tabs" id="modal-tabs"></div>
-      <textarea id="email-body" style="height:200px;"></textarea>
-      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-        <button class="btn btn-outline" onclick="closeModal()">Zamknij</button>
-        <button class="btn btn-blue" onclick="sendToOutlook()">📧 Otwórz w Outlook</button>
-      </div>
-    </div>
-  </div>
-
-<script>
-  // --- KONFIGURACJA ---
-  const firebaseConfig = {
-    apiKey: "AIzaSyBl7zCosM_dzbrr0uBpiehRY3APlqkRugA",
-    authDomain: "awizacja-app.firebaseapp.com",
-    databaseURL: "https://awizacja-app-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "awizacja-app",
-    storageBucket: "awizacja-app.firebasestorage.app",
-    messagingSenderId: "322488206183",
-    appId: "1:322488206183:web:09661aebc3b87de85665c2"
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.database();
-
-  let appData = { vehicles: [], installations: [], advices: [] };
-  let currentEmailTarget = { inst: 'ALL' };
-
-  // --- LOGOWANIE ---
-  auth.onAuthStateChanged(user => {
-    if (user) {
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      loadData();
-    } else {
-      document.getElementById('login-screen').style.display = 'flex';
-      document.getElementById('app').style.display = 'none';
-    }
-  });
-
-  function login() {
-    const e = document.getElementById('log-email').value;
-    const p = document.getElementById('log-pass').value;
-    auth.signInWithEmailAndPassword(e, p).catch(err => { document.getElementById('log-err').innerText = "Błąd logowania!"; });
-  }
-
-  function logout() { auth.signOut(); }
-
-  // --- OBSŁUGA DANYCH ---
-  function loadData() {
-    db.ref('albaAwizacje').on('value', snap => {
-      const val = snap.val();
-      if (val) {
-        appData = val;
-        if(!appData.advices) appData.advices = [];
-        if(!appData.vehicles) appData.vehicles = [];
-        if(!appData.installations) appData.installations = [];
-        refreshUI();
-      }
-    });
-  }
-
-  function refreshUI() {
-    // Selecty
-    const vSel = document.getElementById('add-veh');
-    vSel.innerHTML = appData.vehicles.map(v => `<option value="${v.side}">${v.side} (${v.reg})</option>`).join('');
-    
-    const iSel = document.getElementById('add-inst');
-    iSel.innerHTML = appData.installations.map(i => `<option value="${i.name}">${i.name}</option>`).join('');
-
-    // Listy admina
-    document.getElementById('adm-inst-list').innerHTML = appData.installations.map((i, idx) => `<div><b>${i.name}</b> - ${i.mail} <button onclick="deleteItem('installations', ${idx})">Usuń</button></div>`).join('');
-    document.getElementById('adm-veh-list').innerHTML = appData.vehicles.map((v, idx) => `<div><b>${v.side}</b> (${v.reg}) <button onclick="deleteItem('vehicles', ${idx})">Usuń</button></div>`).join('');
-
-    // Lista awizacji
-    const date = document.getElementById('add-date').value;
-    document.getElementById('adv-list').innerHTML = appData.advices.filter(a => a.date === date).map(a => `
-      <tr><td>${a.veh}</td><td>${a.inst}</td><td>${a.waste}</td><td><button onclick="deleteAdvice('${a.id}')">Usuń</button></td></tr>
-    `).join('');
-  }
-
-  function addAdvice() {
-    const a = { id: Date.now(), date: document.getElementById('add-date').value, veh: document.getElementById('add-veh').value, inst: document.getElementById('add-inst').value, waste: document.getElementById('add-waste').value };
-    appData.advices.push(a);
-    db.ref('albaAwizacje').set(appData);
-  }
-
-  function addAdminInst() {
-    const n = document.getElementById('adm-inst-name').value;
-    const m = document.getElementById('adm-inst-mail').value;
-    appData.installations.push({ name: n, mail: m });
-    db.ref('albaAwizacje').set(appData);
-  }
-
-  function addAdminVeh() {
-    const s = document.getElementById('adm-veh-side').value;
-    const r = document.getElementById('adm-veh-reg').value;
-    appData.vehicles.push({ side: s, reg: r });
-    db.ref('albaAwizacje').set(appData);
-  }
-
-  function deleteItem(type, idx) { appData[type].splice(idx, 1); db.ref('albaAwizacje').set(appData); }
-  function deleteAdvice(id) { appData.advices = appData.advices.filter(a => a.id != id); db.ref('albaAwizacje').set(appData); }
-
-  // --- MAILE ---
-  function openEmailModal() {
-    const date = document.getElementById('add-date').value;
-    const advices = appData.advices.filter(a => a.date === date);
-    const tabs = document.getElementById('modal-tabs');
-    tabs.innerHTML = `<button class="tab-btn active" onclick="setMailTab('ALL')">Wszystkie</button>`;
-    
-    const uniqueInst = [...new Set(advices.map(a => a.inst))];
-    uniqueInst.forEach(inst => {
-      tabs.innerHTML += `<button class="tab-btn" onclick="setMailTab('${inst}')">${inst}</button>`;
-    });
-    
-    setMailTab('ALL');
-    document.getElementById('email-modal').style.display = 'flex';
-  }
-
-  function setMailTab(inst) {
-    currentEmailTarget.inst = inst;
-    const date = document.getElementById('add-date').value;
-    const advices = appData.advices.filter(a => a.date === date && (inst === 'ALL' || a.inst === inst));
-    
-    let text = "Dzień dobry,\n\nAwizuję pojazdy na dzień " + date + ":\n";
-    advices.forEach(a => {
-      const v = appData.vehicles.find(veh => veh.side === a.veh);
-      text += `- ${v ? v.reg : a.veh} (${a.veh}), odpad: ${a.waste}\n`;
-    });
-    document.getElementById('email-body').value = text;
-  }
-
-  function sendToOutlook() {
-    const body = encodeURIComponent(document.getElementById('email-body').value);
-    const date = document.getElementById('add-date').value;
-    let mailTo = "";
-    
-    if(currentEmailTarget.inst !== 'ALL') {
-      const instData = appData.installations.find(i => i.name === currentEmailTarget.inst);
-      if(instData) mailTo = instData.mail;
-    }
-    
-    window.location.href = `mailto:${mailTo}?subject=Awizacja ${date}&body=${body}`;
-  }
-
-  // --- POMOCNICZE ---
-  function showView(v) { 
-    document.querySelectorAll('.view').forEach(el => el.style.display='none');
-    document.getElementById('view-'+v).style.display='block';
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-  }
-  function closeModal() { document.getElementById('email-modal').style.display='none'; }
-  function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }
-  setInterval(updateClock, 1000);
-  document.getElementById('add-date').valueAsDate = new Date();
-</script>
-</body>
-</html>
+          <div style="text-align: left; margin-bottom: 24px;">
+              <input type="password" id="auth-pass" placeholder="Hasło
