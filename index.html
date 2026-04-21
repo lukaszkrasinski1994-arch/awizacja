@@ -8,9 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-  
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  
+
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
 
@@ -546,114 +545,94 @@
 
   // --- KONFIGURACJA FIREBASE ---
   const firebaseConfig = {
-    apiKey: "AIzaSyBl7zCosM_dzbrr0uBpiehRY3APlqkRugA",
-    authDomain: "awizacja-app.firebaseapp.com",
-    databaseURL: "https://awizacja-app-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "awizacja-app",
-    storageBucket: "awizacja-app.firebasestorage.app",
-    messagingSenderId: "322488206183",
-    appId: "1:322488206183:web:09661aebc3b87de85665c2",
-    measurementId: "G-YW3PYH6H9B"
+      apiKey: "AIzaSyBl7zCosM_dzbrr0uBpiehRY3APlqkRugA",
+      authDomain: "awizacja-app.firebaseapp.com",
+      databaseURL: "https://awizacja-app-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "awizacja-app",
+      storageBucket: "awizacja-app.firebasestorage.app",
+      messagingSenderId: "322488206183",
+      appId: "1:322488206183:web:09661aebc3b87de85665c2"
   };
 
   firebase.initializeApp(firebaseConfig);
-  const database = firebase.database();
-  const dbRef = database.ref('albaAwizacje');
+  const dbRef = firebase.database().ref('albaAwizacje');
 
   let db = {
-    vehicles: [], wastes: [], installations: [], municipalities: ['Czerwionka-Leszczyny', 'Wrocław'],
-    drivers: [], advices: [], templates: [], settings: { bdo: '.000002996' }
+      vehicles: [], wastes: [], installations: [], municipalities: ['Czerwionka-Leszczyny', 'Wrocław'],
+      drivers: [], advices: [], templates: [], settings: { bdo: '.000002996' }
   };
 
-  // NASŁUCHIWANIE NA ZMIANY W BAZIE CHMUROWEJ
-  dbRef.on('value', (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      db = data;
-      
-      // Zabezpieczenia na wypadek, gdyby Firebase nie zwrócił pustych tablic
-      if (!db.settings) db.settings = { bdo: '.000002996' };
-      if (!db.vehicles) db.vehicles = [];
-      if (!db.wastes) db.wastes = [];
-      if (!db.installations) db.installations = [];
-      if (!db.municipalities) db.municipalities = [];
-      if (!db.drivers) db.drivers = [];
-      if (!db.advices) db.advices = [];
-      if (!db.templates) db.templates = [];
-      
-      // Dodatkowe migracje strukturalne
-      if (db.vehicles.length > 0) {
-          db.vehicles = db.vehicles.map(v => {
-              if (typeof v === 'string') return { sideNumber: v, regNumber: v, isFavorite: false };
-              if (v.isFavorite === undefined) v.isFavorite = false;
-              delete v.phone; 
-              return v;
-          });
-      }
-      if (db.templates.length === 0) {
-          db.templates = [
-              { id: 't1', name: 'Codziennie (Pn-Nd)', days: [0,1,2,3,4,5,6] },
-              { id: 't2', name: 'Od poniedziałku do piątku (Pn-Pt)', days: [0,1,2,3,4] }
-          ];
-      }
-      if (db.advices.length > 0) {
-          db.advices = db.advices.map(a => {
-              if (!a.courses) a.courses = 1;
-              if (a.returnLoad === undefined) a.returnLoad = false;
-              if (a.loadingOnly === undefined) a.loadingOnly = false;
-              return a;
-          });
-      }
+  let isFirstLoad = true;
 
-      refreshAll();
-      buildCalendarGrid();
-    } else {
-      // Jeśli baza w chmurze jest pusta (pierwsze uruchomienie), uzupełnij domyślnymi danymi
-      runInitialMigration();
-      saveDb();
-    }
+  // Nasłuchiwanie zmian w chmurze
+  dbRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+          db = data;
+          
+          // Zabezpieczenia na wypadek usunięcia wszystkich elementów przez kogoś (Firebase zwraca wtedy brak klucza)
+          if (!db.settings) db.settings = { bdo: '.000002996' };
+          if (!db.drivers) db.drivers = [];
+          if (!db.vehicles) db.vehicles = [];
+          if (!db.wastes) db.wastes = [];
+          if (!db.installations) db.installations = [];
+          if (!db.municipalities) db.municipalities = [];
+          if (!db.advices) db.advices = [];
+          if (!db.templates) db.templates = [];
+
+          if (isFirstLoad) {
+              document.getElementById('inp-settings-bdo').value = db.settings.bdo;
+              isFirstLoad = false;
+          }
+
+          refreshAll();
+          
+          if(document.getElementById('view-schedule').classList.contains('active')) {
+              buildCalendarGrid();
+          }
+      } else {
+          runInitialMigration();
+          saveDb();
+      }
   });
 
-  // GŁÓWNA FUNKCJA ZAPISUJĄCA DO CHMURY
   function saveDb() {
-    dbRef.set(db).catch(error => console.error("Błąd zapisu do bazy Firebase:", error));
+      dbRef.set(db).catch(error => console.error("Firebase Error:", error));
   }
 
   function runInitialMigration() {
-    const hardcodedWastes = ['15 01 01', '15 01 02', '15 01 03', '15 01 04', '15 01 06', '15 01 07', '19 08 01', '19 12 12', '20 01 08', '20 01 39', '20 01 40', '20 01 99', '20 02 01', '20 03 01', '20 03 07'];
-    const hardcodedInsts = [
-        { name: 'SANIKONT', email: 'marta.smuga@sanikont.pl', allowedWastes: ['15 01 01', '15 01 02', '15 01 04', '15 01 07'] },
-        { name: 'BEST EKO', email: 'besteko@besteko.pl', allowedWastes: ['20 02 01'] },
-        { name: 'KĘPA', email: 'biuro@kompostownia.com.pl', allowedWastes: ['20 02 01'] },
-        { name: 'CHEMIK/WROZAMET', email: 'biuro@trans-formers.com.pl', allowedWastes: ['15 01 06', '20 01 99'] },
-        { name: 'WPO', email: 'dyspozytor@alba.com.pl', allowedWastes: ['20 03 01', '20 03 07', '19 12 12', '15 01 03'] },
-        { name: 'KRYNICZNO', email: 'ekosystem@ekosystem.wroc.pl', allowedWastes: ['20 02 01'] },
-        { name: 'GAĆ', email: 'magdalena.witt@zgogac.pl', allowedWastes: ['20 03 01', '20 03 07', '20 01 08', '19 08 01', '15 01 01', '15 01 02', '15 01 07', '20 01 39', '20 01 40'] }
-    ];
+      const hardcodedWastes = ['15 01 01', '15 01 02', '15 01 03', '15 01 04', '15 01 06', '15 01 07', '19 08 01', '19 12 12', '20 01 08', '20 01 39', '20 01 40', '20 01 99', '20 02 01', '20 03 01', '20 03 07'];
+      const hardcodedInsts = [
+          { name: 'SANIKONT', email: 'marta.smuga@sanikont.pl', allowedWastes: ['15 01 01', '15 01 02', '15 01 04', '15 01 07'] },
+          { name: 'BEST EKO', email: 'besteko@besteko.pl', allowedWastes: ['20 02 01'] },
+          { name: 'KĘPA', email: 'biuro@kompostownia.com.pl', allowedWastes: ['20 02 01'] },
+          { name: 'CHEMIK/WROZAMET', email: 'biuro@trans-formers.com.pl', allowedWastes: ['15 01 06', '20 01 99'] },
+          { name: 'WPO', email: 'dyspozytor@alba.com.pl', allowedWastes: ['20 03 01', '20 03 07', '19 12 12', '15 01 03'] },
+          { name: 'KRYNICZNO', email: 'ekosystem@ekosystem.wroc.pl', allowedWastes: ['20 02 01'] },
+          { name: 'GAĆ', email: 'magdalena.witt@zgogac.pl', allowedWastes: ['20 03 01', '20 03 07', '20 01 08', '19 08 01', '15 01 01', '15 01 02', '15 01 07', '20 01 39', '20 01 40'] }
+      ];
 
-    hardcodedWastes.forEach(w => {
-        if (!db.wastes.includes(w)) db.wastes.push(w);
-    });
-    db.wastes.sort();
+      hardcodedWastes.forEach(w => {
+          if (!db.wastes.includes(w)) db.wastes.push(w);
+      });
+      db.wastes.sort();
 
-    hardcodedInsts.forEach(hi => {
-        const existing = db.installations.find(i => i.name === hi.name);
-        if (existing) {
-            existing.email = hi.email;
-            hi.allowedWastes.forEach(aw => {
-                if (!existing.allowedWastes.includes(aw)) existing.allowedWastes.push(aw);
-            });
-        } else {
-            db.installations.push(hi);
-        }
-    });
-
-    db.municipalities = ['Czerwionka-Leszczyny', 'Wrocław'];
-    db.settings = { bdo: '.000002996' };
-    db.templates = [
-        { id: 't1', name: 'Codziennie (Pn-Nd)', days: [0,1,2,3,4,5,6] },
-        { id: 't2', name: 'Od poniedziałku do piątku (Pn-Pt)', days: [0,1,2,3,4] }
-    ];
+      hardcodedInsts.forEach(hi => {
+          const existing = db.installations.find(i => i.name === hi.name);
+          if (existing) {
+              existing.email = hi.email;
+              hi.allowedWastes.forEach(aw => {
+                  if (!existing.allowedWastes.includes(aw)) existing.allowedWastes.push(aw);
+              });
+          } else {
+              db.installations.push(hi);
+          }
+      });
+      
+      db.templates = [
+          { id: 't1', name: 'Codziennie (Pn-Nd)', days: [0,1,2,3,4,5,6] },
+          { id: 't2', name: 'Od poniedziałku do piątku (Pn-Pt)', days: [0,1,2,3,4] }
+      ];
   }
 
   let currentFilteredAdvices = [];
@@ -672,9 +651,6 @@
     const yyyy = today.getFullYear();
     document.getElementById('sched-month').value = `${yyyy}-${mm}`;
 
-    // UWAGA: refreshAll() zostało przeniesione do dbRef.on('value'), 
-    // żeby widoki odświeżały się automatycznie po pobraniu danych.
-
     document.getElementById('adv-date').addEventListener('change', renderAdvices);
   };
 
@@ -685,10 +661,6 @@
   }
 
   function refreshAll() {
-    // Wpisanie bdo do okienka, jeśli nie ma
-    if (document.getElementById('inp-settings-bdo').value === "") {
-        document.getElementById('inp-settings-bdo').value = db.settings.bdo || '';
-    }
     renderSelectOptions();
     renderDictLists();
     renderAdvices();
