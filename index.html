@@ -148,4 +148,1585 @@
               <input type="email" id="auth-email" placeholder="E-mail">
           </div>
           <div style="text-align: left; margin-bottom: 24px;">
-              <input type="password" id="auth-pass" placeholder="Hasło
+              <input type="password" id="auth-pass" placeholder="Hasło">
+          </div>
+          <button class="btn blue" style="width: 100%;" onclick="loginUser()">Zaloguj się</button>
+          <div class="error-msg" id="login-error"></div>
+      </div>
+  </div>
+
+  <header>
+    <div class="topbar"></div>
+    <div class="wrap">
+      <div class="header-left">
+        <img alt="ALBA – logo" src="https://www.alba.com.pl/download/17.jpg" />
+        <h1>System Awizacji WPO ALBA</h1>
+      </div>
+      <div class="header-right">
+        <div class="clock-container">
+            <div id="clock-time">--:--:--</div>
+            <div class="clock-label">Awizacje do godz. 13:00</div>
+        </div>
+        <button class="btn outline small" onclick="logoutUser()">Wyloguj</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="app-main">
+    <div class="tabs">
+      <div class="tab-btn active" onclick="switchTab('dispatcher')">Podgląd Dnia</div>
+      <div class="tab-btn" onclick="switchTab('schedule')">🗓 Harmonogram (Miesiąc)</div>
+      <div class="tab-btn" onclick="switchTab('admin')">⚙️ Administracja (Słowniki)</div>
+    </div>
+
+    <div id="view-dispatcher" class="view active">
+      <div class="card">
+        <div class="card-top"></div>
+        <div class="title">Szybka awizacja (Pojedynczy dzień)</div>
+        
+        <div style="margin-bottom: 24px; max-width: 400px;">
+            <label>Data Awizacji</label>
+            <div style="display: flex; gap: 8px;">
+                <input type="date" id="adv-date" />
+                <button class="btn outline" style="padding: 0 16px;" onclick="setToday()">DZIŚ</button>
+                <button class="btn blue" style="padding: 0 16px;" onclick="setTomorrow()">JUTRO</button>
+            </div>
+        </div>
+
+        <div class="row-5">
+          <div>
+            <label>Pojazd (Nr Boczny)</label>
+            <select id="adv-vehicle" class="sel-vehicle" onchange="onVehicleChange('adv')"><option value="">-- Wybierz --</option></select>
+          </div>
+          <div>
+            <label>Instalacja</label>
+            <select id="adv-installation" class="sel-installation" onchange="updateDropdowns('adv', 'inst')"><option value="">-- Wybierz --</option></select>
+          </div>
+          <div>
+            <label>Frakcja / Kod Odpadu</label>
+            <select id="adv-waste" class="sel-waste" onchange="updateDropdowns('adv', 'waste')"><option value="">-- Wybierz --</option></select>
+          </div>
+          <div id="adv-municipality-container">
+            <label>Gmina (Źródło)</label>
+            <select id="adv-municipality" class="sel-municipality"><option value="">-- Wybierz --</option></select>
+          </div>
+          <div>
+            <label>Liczba kursów</label>
+            <input type="number" id="adv-courses" value="1" min="1" max="20" />
+          </div>
+        </div>
+        
+        <div id="adv-tractor-options" style="display: none; background:#f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--field-border); margin-bottom: 16px; flex-direction: column; gap: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Opcje dla ciągników (R)</div>
+            <label class="checkbox-item" style="color: var(--alba-blue); font-family: 'Montserrat', sans-serif;">
+                <input type="checkbox" id="adv-return"> 
+                POJAZD PODSTAWI SIĘ RÓWNIEŻ DO ZAŁADUNKU SELEKTYWNEJ (ŁADUJEMY POWRÓT)
+            </label>
+            <label class="checkbox-item" style="color: var(--alba-blue); font-family: 'Montserrat', sans-serif;">
+                <input type="checkbox" id="adv-loading-only" onchange="toggleWasteReq('adv')"> 
+                AWIZACJA NA SAM ZAŁADUNEK (BEZ KODU ODPADU)
+            </label>
+        </div>
+        <div id="adv-dummy-container" style="margin-bottom: 16px;"></div>
+
+        <button class="btn blue" onclick="addAdvice()">➕ Zapisz do kalendarza</button>
+      </div>
+
+      <div class="card">
+        <div class="header-actions">
+            <div class="title" style="margin: 0;">Lista awizacji na wybrany dzień</div>
+            <button class="btn" onclick="openBulkEmailModal()">✉️ Generuj maile do Outlooka</button>
+        </div>
+        
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Pojazd (Boczny)</th>
+                <th>Frakcja</th>
+                <th>Instalacja</th>
+                <th>Gmina</th>
+                <th style="text-align: center;">Kursy</th>
+                <th style="text-align: center;">Powrót (Selektywna)</th>
+                <th style="text-align: right;">Akcja</th>
+              </tr>
+            </thead>
+            <tbody id="advices-tbody">
+              </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-schedule" class="view">
+      <div class="card">
+        <div class="card-top"></div>
+        <div class="title">Planowanie Miesięczne (Wiele dni naraz)</div>
+        <p style="color:var(--muted); font-size:13px; margin-top:0; margin-bottom:24px;">Wybierz trasę, określ miesiąc i wybierz szablon częstotliwości. Możesz też ręcznie wyklikać dni w kalendarzu na dole.</p>
+        
+        <div class="row-5" style="background:#f8fafc; padding:16px; border-radius:8px 8px 0 0; border:1px solid var(--field-border); border-bottom: none;">
+          <div>
+            <label>Pojazd</label>
+            <select id="sched-vehicle" class="sel-vehicle" onchange="onVehicleChange('sched')"><option value="">-- Wybierz --</option></select>
+          </div>
+          <div>
+            <label>Instalacja</label>
+            <select id="sched-installation" class="sel-installation" onchange="updateDropdowns('sched', 'inst')"><option value="">-- Wybierz --</option></select>
+          </div>
+          <div>
+            <label>Frakcja</label>
+            <select id="sched-waste" class="sel-waste" onchange="updateDropdowns('sched', 'waste')"><option value="">-- Wybierz --</option></select>
+          </div>
+          <div id="sched-municipality-container">
+            <label>Gmina</label>
+            <select id="sched-municipality" class="sel-municipality"><option value="">-- Wybierz --</option></select>
+          </div>
+          <div>
+            <label>Liczba kursów</label>
+            <input type="number" id="sched-courses" value="1" min="1" max="20" />
+          </div>
+        </div>
+        
+        <div id="sched-tractor-options" style="display: none; background:#f8fafc; padding:0 16px 16px 16px; border-radius:0 0 8px 8px; border:1px solid var(--field-border); border-top: none; margin-bottom:24px; flex-direction: column; gap: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Opcje dla ciągników (R)</div>
+            <label class="checkbox-item" style="color: var(--alba-blue); font-family: 'Montserrat', sans-serif;">
+                <input type="checkbox" id="sched-return"> 
+                POJAZD PODSTAWI SIĘ RÓWNIEŻ DO ZAŁADUNKU SELEKTYWNEJ (ŁADUJEMY POWRÓT)
+            </label>
+            <label class="checkbox-item" style="color: var(--alba-blue); font-family: 'Montserrat', sans-serif;">
+                <input type="checkbox" id="sched-loading-only" onchange="toggleWasteReq('sched')"> 
+                AWIZACJA NA SAM ZAŁADUNEK (BEZ KODU ODPADU)
+            </label>
+        </div>
+        <div id="sched-dummy-container" style="margin-bottom: 24px;"></div>
+
+        <div class="row-2" style="margin-bottom: 24px;">
+            <div>
+                <label>Miesiąc Planowania</label>
+                <input type="month" id="sched-month" onchange="buildCalendarGrid()" />
+            </div>
+            <div>
+                <label>Szablon Częstotliwości (Zaznacza dni)</label>
+                <select id="sched-frequency" onchange="applyFrequencyPattern()"></select>
+            </div>
+        </div>
+
+        <div id="cal-container" style="border: 1px solid var(--field-border); border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+            <div class="cal-grid" id="cal-headers">
+                <div class="cal-header">Pn</div><div class="cal-header">Wt</div><div class="cal-header">Śr</div>
+                <div class="cal-header">Cz</div><div class="cal-header">Pt</div><div class="cal-header">Sb</div><div class="cal-header">Nd</div>
+            </div>
+            <div class="cal-grid" id="cal-days">
+                </div>
+        </div>
+
+        <button class="btn blue" onclick="saveBulkSchedule()">✅ Zapisz harmonogram na wybrane dni</button>
+      </div>
+    </div>
+
+    <div id="view-admin" class="view">
+      <div class="card">
+        <div class="card-top"></div>
+        <div class="title">Zarządzanie Słownikami</div>
+        <p style="color: var(--muted); margin-top: 0; margin-bottom: 24px;">Tutaj dodasz i usuniesz pozycje dostępne w listach rozwijanych w Panelu Dyspozytora oraz zmienisz ustawienia.</p>
+        
+        <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--alba-blue); margin-bottom: 24px;">
+            <label>Ustawienia Globalne</label>
+            <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                <div>
+                    <label style="font-size: 11px; margin-bottom: 4px; color: var(--muted);">Domyślny nr BDO transportującego (dla ciągników 'R')</label>
+                    <input type="text" id="inp-settings-bdo" placeholder="np. .000002996" style="min-width: 250px;">
+                </div>
+                <button class="btn blue" onclick="saveSettings()">Zapisz Ustawienia</button>
+            </div>
+        </div>
+
+        <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--field-border); margin-bottom: 24px;">
+          <label>Własne Szablony Harmonogramu (np. Odpady Zielone Pn, Śr)</label>
+          <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+            <div style="flex-grow: 1; min-width: 200px;">
+              <input type="text" id="inp-tpl-name" placeholder="Nazwa szablonu">
+            </div>
+            <div class="checkbox-group">
+              <label class="checkbox-item"><input type="checkbox" value="0" class="tpl-day"> Pn</label>
+              <label class="checkbox-item"><input type="checkbox" value="1" class="tpl-day"> Wt</label>
+              <label class="checkbox-item"><input type="checkbox" value="2" class="tpl-day"> Śr</label>
+              <label class="checkbox-item"><input type="checkbox" value="3" class="tpl-day"> Cz</label>
+              <label class="checkbox-item"><input type="checkbox" value="4" class="tpl-day"> Pt</label>
+              <label class="checkbox-item"><input type="checkbox" value="5" class="tpl-day"> Sb</label>
+              <label class="checkbox-item"><input type="checkbox" value="6" class="tpl-day"> Nd</label>
+            </div>
+            <button class="btn" onclick="addTemplate()">Zapisz Szablon</button>
+          </div>
+          <div class="list-container" id="list-templates"></div>
+        </div>
+
+        <div class="row-2">
+          
+          <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--field-border);">
+            <label>Kody Odpadów / Frakcje</label>
+            <p style="font-size: 11px; color: var(--muted); margin-top: 0; margin-bottom: 12px;">Wpisz 6 cyfr bez spacji, a system sam podzieli na grupy i ułoży wg oficjalnego Katalogu Odpadów.</p>
+            <div class="flex-group">
+              <input type="text" id="inp-waste" placeholder="np. 150107">
+              <button class="btn" onclick="addWaste()">Dodaj</button>
+            </div>
+            <div class="list-container" id="list-wastes"></div>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--field-border);">
+            <label>Składowiska / Instalacje (Z listą obsługiwanych kodów)</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+              <input type="text" id="inp-installation" placeholder="Nazwa (np. Best Eko)">
+              <input type="text" id="inp-inst-email" placeholder="E-maile (np. biuro@a.pl; waga@a.pl)">
+            </div>
+            <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--alba-blue);">Przypisz odbierane kody odpadów:</div>
+            <div id="inst-waste-checkboxes" class="scrollable-checkbox-list">
+              </div>
+            <button class="btn" onclick="addInstallation()" style="width: 100%;">Dodaj Składowisko</button>
+            <div class="list-container" id="list-installations"></div>
+          </div>
+
+          <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--field-border);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:12px;">
+                <label style="margin:0;">Pojazdy</label>
+                <button class="btn outline small" onclick="document.getElementById('csv-vehicle-upload').click()">📂 Import z Excela (kolumny G i I)</button>
+                <input type="file" id="csv-vehicle-upload" accept=".xlsx, .xls, .csv" style="display:none;" onchange="importVehiclesExcel(event)">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: flex-end; margin-bottom: 12px;">
+              <div><input type="text" id="inp-vehicle-side" placeholder="Nr boczny (np. B118)"></div>
+              <div><input type="text" id="inp-vehicle-reg" placeholder="Nr rej. (np. DW2TL71)"></div>
+              <button class="btn" onclick="addVehicle()">Dodaj</button>
+            </div>
+            
+            <input type="text" id="flt-vehicle" placeholder="Szukaj pojazdu..." onkeyup="renderDictLists()" style="margin-bottom: 8px; background: var(--alba-blue-weak); border-color: #e2e8f0;">
+
+            <div class="list-container" id="list-vehicles"></div>
+          </div>
+
+          <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--field-border);">
+            <label>Kierowcy (Powiadomienia WhatsApp dla ciągników)</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: flex-end; margin-bottom: 12px;">
+              <div><input type="text" id="inp-driver-name" placeholder="Imię i Nazwisko"></div>
+              <div><input type="text" id="inp-driver-phone" placeholder="Telefon (np. 123456789)"></div>
+              <button class="btn" onclick="addDriver()">Dodaj</button>
+            </div>
+            <div class="list-container" id="list-drivers"></div>
+          </div>
+
+          <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--field-border); margin-top: 24px; grid-column: span 2;">
+            <label>Gminy (Źródła Odpadu)</label>
+            <div class="flex-group">
+              <input type="text" id="inp-municipality" placeholder="np. Czerwionka-Leszczyny">
+              <button class="btn" onclick="addDictItem('municipalities', 'inp-municipality')">Dodaj</button>
+            </div>
+            <div class="list-container" id="list-municipalities"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="edit-advice-modal">
+    <div class="modal modal-small">
+      <div class="title" style="margin-top:0;">Edytuj awizację</div>
+      <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Zmień potrzebne dane. Zależności między Składowiskiem a Kodem Odpadu są włączone.</p>
+      
+      <div class="row-2" style="margin-bottom: 16px;">
+          <div>
+            <label>Data</label>
+            <input type="date" id="edit-adv-date" />
+          </div>
+          <div>
+            <label>Pojazd</label>
+            <select id="edit-adv-vehicle" class="sel-vehicle" onchange="onVehicleChange('edit-adv')"></select>
+          </div>
+      </div>
+      <div class="row-2" style="margin-bottom: 16px;">
+          <div>
+            <label>Instalacja</label>
+            <select id="edit-adv-installation" class="sel-installation" onchange="updateDropdowns('edit-adv', 'inst')"></select>
+          </div>
+          <div>
+            <label>Frakcja / Kod</label>
+            <select id="edit-adv-waste" class="sel-waste" onchange="updateDropdowns('edit-adv', 'waste')"></select>
+          </div>
+      </div>
+      <div class="row-2" style="margin-bottom: 16px;">
+          <div id="edit-adv-municipality-container">
+            <label>Gmina</label>
+            <select id="edit-adv-municipality" class="sel-municipality"></select>
+          </div>
+          <div>
+            <label>Liczba kursów</label>
+            <input type="number" id="edit-adv-courses" min="1" max="20" />
+          </div>
+      </div>
+      
+      <div id="edit-adv-tractor-options" style="display: none; background:#f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--field-border); margin-bottom: 24px; flex-direction: column; gap: 8px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Opcje dla ciągników (R)</div>
+          <label class="checkbox-item" style="color: var(--alba-blue); font-family: 'Montserrat', sans-serif;">
+              <input type="checkbox" id="edit-adv-return"> 
+              POJAZD PODSTAWI SIĘ RÓWNIEŻ DO ZAŁADUNKU SELEKTYWNEJ
+          </label>
+          <label class="checkbox-item" style="color: var(--alba-blue); font-family: 'Montserrat', sans-serif;">
+              <input type="checkbox" id="edit-adv-loading-only" onchange="toggleWasteReq('edit-adv')"> 
+              AWIZACJA NA SAM ZAŁADUNEK (BEZ KODU ODPADU)
+          </label>
+      </div>
+      
+      <div style="display:flex; justify-content: flex-end; gap: 12px;">
+        <button class="btn outline" onclick="closeEditModal()">Anuluj</button>
+        <button class="btn blue" onclick="saveEditAdvice()">Zapisz zmiany</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="wa-modal">
+    <div class="modal modal-small">
+      <div class="title" style="margin-top:0;">Wiadomość do kierowcy (WhatsApp)</div>
+      <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Wybierz kierowcę, który realizuje ten kurs, aby wysłać mu szczegóły awizacji na telefon.</p>
+      
+      <div style="margin-bottom: 24px;">
+          <label>Kierowca</label>
+          <select id="wa-driver-select">
+              <option value="">-- Wybierz kierowcę --</option>
+          </select>
+      </div>
+      
+      <div style="display:flex; justify-content: flex-end; gap: 12px;">
+        <button class="btn outline" onclick="closeWaModal()">Anuluj</button>
+        <button class="btn btn-wa" onclick="executeSendWhatsApp()">💬 Przejdź do wysyłki</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="email-modal">
+    <div class="modal">
+      <div class="title" style="margin-top:0;">Gotowe Maile Awizacyjne</div>
+      <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Zakładki zostały podzielone na <b>Śmieciarki</b> oraz <b>Ciągniki</b> (zaczynające się na 'R'). Wybierz odpowiednią listę, by wysłać maila do prawidłowego adresata.</p>
+      
+      <div id="email-tabs" class="tabs" style="margin-bottom: 16px; flex-wrap: wrap; gap: 8px;"></div>
+      <textarea id="email-content"></textarea>
+      
+      <div style="display:flex; justify-content: flex-end; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <button class="btn outline small" onclick="closeModal()" style="padding: 12px 24px;">Zamknij</button>
+        <button class="btn outline" onclick="copyEmail()">📋 Kopiuj sam tekst</button>
+        <button class="btn blue" onclick="openMailClient()">📧 Otwórz w Outlook (Zalecane)</button>
+        <button class="btn outline small" onclick="downloadOutlookEml()" title="Tylko w razie problemów z głównym przyciskiem">Pobierz .eml</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ZEGAR
+  function updateClock() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      
+      const clockEl = document.getElementById('clock-time');
+      if (clockEl) {
+          clockEl.textContent = `${hh}:${mm}:${ss}`;
+          if (now.getHours() >= 13) {
+              clockEl.style.color = 'var(--err)';
+          } else {
+              clockEl.style.color = 'var(--alba-blue)';
+          }
+      }
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function setToday() {
+      document.getElementById('adv-date').valueAsDate = new Date();
+      renderAdvices();
+  }
+
+  function setTomorrow() {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      document.getElementById('adv-date').valueAsDate = tomorrow;
+      renderAdvices();
+  }
+
+  const WASTE_GROUPS_DEF = {
+      "01": "01 - Odpady powstające przy poszukiwaniu i wydobywaniu kopalisk",
+      "02": "02 - Odpady z rolnictwa, sadownictwa, łowiectwa, rybołówstwa",
+      "03": "03 - Odpady z przetwórstwa drewna oraz z produkcji papieru",
+      "04": "04 - Odpady z przemysłu skórzanego i tekstylnego",
+      "05": "05 - Odpady z przeróbki ropy naftowej i gazu",
+      "06": "06 - Odpady z procesów chemii nieorganicznej",
+      "07": "07 - Odpady z procesów chemii organicznej",
+      "08": "08 - Odpady z produkcji powłok ochronnych, farb i lakierów",
+      "09": "09 - Odpady z przemysłu fotograficznego",
+      "10": "10 - Odpady z procesów termicznych",
+      "11": "11 - Odpady z chemicznej obróbki i powlekania metali",
+      "12": "12 - Odpady z kształtowania oraz obróbki metali",
+      "13": "13 - Oleje odpadowe i odpady ciekłych paliw",
+      "14": "14 - Odpady rozpuszczalników organicznych i chłodziw",
+      "15": "15 - Odpady opakowaniowe; sorbenty, tkaniny, filtry",
+      "16": "16 - Odpady nieujęte w innych grupach (pojazdy, baterie)",
+      "17": "17 - Odpady z budowy, remontów i demontażu",
+      "18": "18 - Odpady medyczne i weterynaryjne",
+      "19": "19 - Odpady z instalacji do zagospodarowania odpadów",
+      "20": "20 - Odpady komunalne, w tym gromadzone selektywnie"
+  };
+
+  // --- KONFIGURACJA FIREBASE ---
+  const firebaseConfig = {
+      apiKey: "AIzaSyBl7zCosM_dzbrr0uBpiehRY3APlqkRugA",
+      authDomain: "awizacja-app.firebaseapp.com",
+      databaseURL: "https://awizacja-app-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "awizacja-app",
+      storageBucket: "awizacja-app.firebasestorage.app",
+      messagingSenderId: "322488206183",
+      appId: "1:322488206183:web:09661aebc3b87de85665c2"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const dbRef = firebase.database().ref('albaAwizacje');
+
+  let db = {
+      vehicles: [], wastes: [], installations: [], municipalities: ['Czerwionka-Leszczyny', 'Wrocław'],
+      drivers: [], advices: [], templates: [], settings: { bdo: '.000002996' }
+  };
+
+  let isFirstLoad = true;
+
+  // --- SYSTEM LOGOWANIA ---
+  auth.onAuthStateChanged(user => {
+      if (user) {
+          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('app-main').style.display = 'block';
+          startDatabaseListener();
+      } else {
+          document.getElementById('login-screen').style.display = 'flex';
+          document.getElementById('app-main').style.display = 'none';
+          dbRef.off();
+      }
+  });
+
+  function loginUser() {
+      const email = document.getElementById('auth-email').value;
+      const pass = document.getElementById('auth-pass').value;
+      const errorDiv = document.getElementById('login-error');
+      
+      if(!email || !pass) { errorDiv.innerText = "Podaj e-mail i hasło!"; return; }
+      
+      errorDiv.innerText = "Logowanie...";
+      auth.signInWithEmailAndPassword(email, pass).catch(error => {
+          console.error(error);
+          errorDiv.innerText = "Błędne dane logowania! Sprawdź e-mail i hasło.";
+      });
+  }
+
+  function logoutUser() {
+      auth.signOut();
+  }
+
+  // --- OBSŁUGA BAZY DANYCH (Po zalogowaniu) ---
+  function startDatabaseListener() {
+      dbRef.on('value', (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+              db = data;
+              
+              if (!db.settings) db.settings = { bdo: '.000002996' };
+              if (!db.drivers) db.drivers = [];
+              if (!db.vehicles) db.vehicles = [];
+              if (!db.wastes) db.wastes = [];
+              if (!db.installations) db.installations = [];
+              if (!db.municipalities) db.municipalities = [];
+              if (!db.advices) db.advices = [];
+              if (!db.templates) db.templates = [];
+
+              // Zabezpieczenie na wypadek starej struktury pojazdów
+              db.vehicles = db.vehicles.map(v => {
+                  if (typeof v === 'string') return { sideNumber: v, regNumber: v, isFavorite: false };
+                  return {
+                      sideNumber: v.sideNumber || v.side || 'Brak',
+                      regNumber: v.regNumber || v.reg || 'Brak',
+                      isFavorite: v.isFavorite || false
+                  };
+              });
+              
+              // Zabezpieczenie na wypadek starej struktury instalacji
+              db.installations = db.installations.map(i => {
+                  return {
+                      name: i.name || 'Brak nazwy',
+                      email: i.email || i.mail || '',
+                      allowedWastes: i.allowedWastes || []
+                  };
+              });
+
+              if (isFirstLoad) {
+                  document.getElementById('inp-settings-bdo').value = db.settings.bdo;
+                  isFirstLoad = false;
+              }
+
+              refreshAll();
+              if(document.getElementById('view-schedule').classList.contains('active')) buildCalendarGrid();
+          } else {
+              runInitialMigration();
+              saveDb();
+          }
+      });
+  }
+
+  function saveDb() {
+      dbRef.set(db).catch(error => console.error("Firebase Error:", error));
+  }
+
+  function runInitialMigration() {
+      const hardcodedWastes = ['15 01 01', '15 01 02', '15 01 03', '15 01 04', '15 01 06', '15 01 07', '19 08 01', '19 12 12', '20 01 08', '20 01 39', '20 01 40', '20 01 99', '20 02 01', '20 03 01', '20 03 07'];
+      const hardcodedInsts = [
+          { name: 'SANIKONT', email: 'marta.smuga@sanikont.pl', allowedWastes: ['15 01 01', '15 01 02', '15 01 04', '15 01 07'] },
+          { name: 'BEST EKO', email: 'besteko@besteko.pl', allowedWastes: ['20 02 01'] },
+          { name: 'KĘPA', email: 'biuro@kompostownia.com.pl', allowedWastes: ['20 02 01'] },
+          { name: 'CHEMIK/WROZAMET', email: 'biuro@trans-formers.com.pl', allowedWastes: ['15 01 06', '20 01 99'] },
+          { name: 'WPO', email: 'dyspozytor@alba.com.pl', allowedWastes: ['20 03 01', '20 03 07', '19 12 12', '15 01 03'] },
+          { name: 'KRYNICZNO', email: 'ekosystem@ekosystem.wroc.pl', allowedWastes: ['20 02 01'] },
+          { name: 'GAĆ', email: 'magdalena.witt@zgogac.pl', allowedWastes: ['20 03 01', '20 03 07', '20 01 08', '19 08 01', '15 01 01', '15 01 02', '15 01 07', '20 01 39', '20 01 40'] }
+      ];
+
+      hardcodedWastes.forEach(w => {
+          if (!db.wastes.includes(w)) db.wastes.push(w);
+      });
+      db.wastes.sort();
+
+      hardcodedInsts.forEach(hi => {
+          const existing = db.installations.find(i => i.name === hi.name);
+          if (existing) {
+              existing.email = hi.email;
+              hi.allowedWastes.forEach(aw => {
+                  if (!existing.allowedWastes.includes(aw)) existing.allowedWastes.push(aw);
+              });
+          } else {
+              db.installations.push(hi);
+          }
+      });
+      
+      db.templates = [
+          { id: 't1', name: 'Codziennie (Pn-Nd)', days: [0,1,2,3,4,5,6] },
+          { id: 't2', name: 'Od poniedziałku do piątku (Pn-Pt)', days: [0,1,2,3,4] }
+      ];
+  }
+
+  let currentFilteredAdvices = [];
+  let selectedDaysInMonth = new Set(); 
+  let currentEmailTargetObj = { type: 'NORMAL', inst: 'ALL' }; 
+  let currentEditId = null;
+  let currentWaAdvId = null;
+
+  window.onload = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('adv-date').valueAsDate = tomorrow;
+    
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    document.getElementById('sched-month').value = `${yyyy}-${mm}`;
+
+    document.getElementById('adv-date').addEventListener('change', renderAdvices);
+  };
+
+  function saveSettings() {
+      db.settings.bdo = document.getElementById('inp-settings-bdo').value.trim();
+      saveDb();
+      alert('Zapisano ustawienia BDO!');
+  }
+
+  function refreshAll() {
+    renderSelectOptions();
+    renderDictLists();
+    renderAdvices();
+    renderTemplatesList();
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tabs > .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    
+    if(tab === 'dispatcher') {
+      document.querySelectorAll('.tabs > .tab-btn')[0].classList.add('active');
+      document.getElementById('view-dispatcher').classList.add('active');
+    } else if(tab === 'schedule') {
+      document.querySelectorAll('.tabs > .tab-btn')[1].classList.add('active');
+      document.getElementById('view-schedule').classList.add('active');
+      buildCalendarGrid();
+    } else {
+      document.querySelectorAll('.tabs > .tab-btn')[2].classList.add('active');
+      document.getElementById('view-admin').classList.add('active');
+    }
+  }
+
+  function toggleWasteReq(prefix) {
+      const cbLoad = document.getElementById(prefix + '-loading-only');
+      const cbReturn = document.getElementById(prefix + '-return');
+      const wasteSel = document.getElementById(prefix + '-waste');
+      
+      if (cbLoad && wasteSel) {
+          if (cbLoad.checked) {
+              wasteSel.disabled = true;
+              wasteSel.value = ''; 
+              if(cbReturn) {
+                  cbReturn.checked = false;
+                  cbReturn.disabled = true;
+              }
+          } else {
+              wasteSel.disabled = false;
+              if(cbReturn) {
+                  cbReturn.disabled = false;
+              }
+          }
+      }
+  }
+
+  function onVehicleChange(prefix) {
+      const sel = document.getElementById(prefix + '-vehicle');
+      const tractorOpts = document.getElementById(prefix + '-tractor-options');
+      const dummySpacer = document.getElementById(prefix + '-dummy-container');
+      const muniContainer = document.getElementById(prefix + '-municipality-container');
+      const muniSel = document.getElementById(prefix + '-municipality');
+      
+      if(sel) {
+          const isTractor = sel.value && sel.value.toUpperCase().startsWith('R');
+
+          if(tractorOpts) {
+              tractorOpts.style.display = isTractor ? 'flex' : 'none';
+          }
+          if(dummySpacer) {
+              dummySpacer.style.display = isTractor ? 'none' : 'block';
+          }
+          if(muniContainer) {
+              muniContainer.style.display = isTractor ? 'none' : 'block';
+          }
+          
+          if(!isTractor) {
+              const cbRet = document.getElementById(prefix + '-return');
+              const cbLoad = document.getElementById(prefix + '-loading-only');
+              if(cbRet) cbRet.checked = false;
+              if(cbLoad) cbLoad.checked = false;
+              toggleWasteReq(prefix);
+          } else {
+              if (muniSel) muniSel.value = ''; 
+          }
+      }
+  }
+
+  /* --- WYSYŁKA WHATSAPP --- */
+  function openWaModal(advId) {
+      if (db.drivers.length === 0) {
+          alert('Brak kierowców w bazie. Dodaj ich najpierw w zakładce: Administracja -> Kierowcy.');
+          return;
+      }
+      currentWaAdvId = advId;
+      const sel = document.getElementById('wa-driver-select');
+      sel.innerHTML = '<option value="">-- Wybierz kierowcę --</option>';
+      db.drivers.forEach((d, idx) => {
+          sel.innerHTML += `<option value="${idx}">${d.name} (${d.phone})</option>`;
+      });
+      document.getElementById('wa-modal').classList.add('active');
+  }
+
+  function closeWaModal() {
+      document.getElementById('wa-modal').classList.remove('active');
+      currentWaAdvId = null;
+  }
+
+  function executeSendWhatsApp() {
+      if (!currentWaAdvId) return;
+      const driverIdx = document.getElementById('wa-driver-select').value;
+      
+      if (driverIdx === "") {
+          alert('Musisz wybrać kierowcę z listy!');
+          return;
+      }
+
+      const adv = db.advices.find(a => a.id === currentWaAdvId);
+      const driver = db.drivers[driverIdx];
+      
+      let phone = driver.phone.replace(/[^0-9]/g, '');
+      if (phone.length === 9) phone = '48' + phone; 
+
+      const vObj = db.vehicles.find(v => v.sideNumber === adv.vehicle);
+      const regNumber = vObj ? vObj.regNumber : '';
+
+      const firstName = driver.name.split(' ')[0];
+      let msg = `Cześć ${firstName}! Awizacja na dzień: ${adv.date}\n\n`;
+      msg += `🚚 Pojazd: ${adv.vehicle} (${regNumber})\n`;
+      msg += `🏭 Instalacja: ${adv.installation}\n`;
+
+      if (adv.loadingOnly) {
+          msg += `⚠️ Cel: SAM ZAŁADUNEK\n`;
+      } else {
+          msg += `♻️ Odpad: ${adv.waste}\n`;
+          if (adv.vehicle.toUpperCase().startsWith('R')) {
+              const returnText = adv.returnLoad ? "TAK" : "NIE";
+              msg += `🔄 Powrót (załadunek selektywnej): ${returnText}\n`;
+          }
+      }
+
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+      closeWaModal();
+  }
+
+  /* --- IMPORTER POJAZDÓW Z EXCELA --- */
+  function importVehiclesExcel(event) {
+      const file = event.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          
+          const json = XLSX.utils.sheet_to_json(firstSheet, {header: 1, defval: ""});
+          
+          let added = 0;
+          json.forEach((row) => {
+              if (row && row.length >= 9) { 
+                  let side = String(row[6]).trim().toUpperCase();
+                  let reg = String(row[8]).trim().toUpperCase();
+                  
+                  if (side && reg && !side.includes('BOCZN') && !reg.includes('REJESTR')) {
+                      if (!db.vehicles.find(v => v.sideNumber === side)) {
+                          db.vehicles.push({ sideNumber: side, regNumber: reg, isFavorite: false });
+                          added++;
+                      }
+                  }
+              }
+          });
+          
+          db.vehicles.sort((a, b) => a.sideNumber.localeCompare(b.sideNumber));
+          saveDb();
+          
+          if(added > 0) {
+              alert(`Pomyślnie zaimportowano ${added} nowych pojazdów!`);
+          } else {
+              alert('Nie znaleziono nowych pojazdów w pliku.');
+          }
+          event.target.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+  }
+
+  function toggleVehicleFav(index) {
+      db.vehicles[index].isFavorite = !db.vehicles[index].isFavorite;
+      saveDb();
+  }
+
+  /* --- SŁOWNIKI --- */
+  function addDictItem(dictName, inputId) {
+    const input = document.getElementById(inputId);
+    const val = input.value.trim();
+    if(val && !db[dictName].includes(val)) {
+      db[dictName].push(val);
+      db[dictName].sort();
+      input.value = '';
+      saveDb();
+    }
+  }
+
+  function addWaste() {
+      const input = document.getElementById('inp-waste');
+      let val = input.value.trim();
+      if (!val) return;
+
+      let cleanVal = val.replace(/\s+/g, '');
+      if (/^\d{6}$/.test(cleanVal)) {
+          val = cleanVal.match(/.{1,2}/g).join(' ');
+      }
+
+      if (!db.wastes.includes(val)) {
+          db.wastes.push(val);
+          db.wastes.sort();
+          input.value = '';
+          saveDb();
+      } else {
+          alert('Taki kod odpadu (lub frakcja) już istnieje w bazie!');
+      }
+  }
+
+  function addVehicle() {
+      const sideInput = document.getElementById('inp-vehicle-side');
+      const regInput = document.getElementById('inp-vehicle-reg');
+      
+      const side = sideInput.value.trim().toUpperCase();
+      const reg = regInput.value.trim().toUpperCase();
+
+      if (side && reg) {
+          const existingVehicle = db.vehicles.find(v => v.sideNumber === side);
+          if (!existingVehicle) {
+              db.vehicles.push({ sideNumber: side, regNumber: reg, isFavorite: false });
+              db.vehicles.sort((a, b) => a.sideNumber.localeCompare(b.sideNumber));
+              sideInput.value = ''; regInput.value = '';
+              saveDb();
+          } else { 
+              existingVehicle.regNumber = reg;
+              saveDb();
+              alert('Zaktualizowano numer rejestracyjny dla tego pojazdu!');
+              sideInput.value = ''; regInput.value = '';
+          }
+      } else { alert('Podaj numer boczny i numer rejestracyjny.'); }
+  }
+
+  function addDriver() {
+      const nameInput = document.getElementById('inp-driver-name');
+      const phoneInput = document.getElementById('inp-driver-phone');
+      
+      const name = nameInput.value.trim();
+      const phone = phoneInput.value.trim();
+
+      if (name && phone) {
+          db.drivers.push({ name: name, phone: phone });
+          db.drivers.sort((a, b) => a.name.localeCompare(b.name));
+          nameInput.value = ''; phoneInput.value = '';
+          saveDb();
+      } else {
+          alert('Podaj Imię i Nazwisko oraz numer telefonu kierowcy.');
+      }
+  }
+
+  function addInstallation() {
+      const nameInput = document.getElementById('inp-installation');
+      const emailInput = document.getElementById('inp-inst-email');
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+      
+      const checkboxes = document.querySelectorAll('.inst-waste-cb:checked');
+      const allowedWastes = Array.from(checkboxes).map(cb => cb.value);
+
+      if (name) {
+          if (!db.installations.find(i => i.name === name)) {
+              if (allowedWastes.length === 0) {
+                  if(!confirm('Nie zaznaczyłeś żadnych kodów odpadów. Czy na pewno dodać instalację bez kodów?')) return;
+              }
+              db.installations.push({ name: name, email: email, allowedWastes: allowedWastes });
+              db.installations.sort((a, b) => a.name.localeCompare(b.name));
+              nameInput.value = ''; emailInput.value = '';
+              document.querySelectorAll('.inst-waste-cb').forEach(cb => cb.checked = false);
+              saveDb();
+          } else { alert('Instalacja o tej nazwie już istnieje!'); }
+      } else { alert('Podaj przynajmniej nazwę instalacji.'); }
+  }
+
+  function addTemplate() {
+      const name = document.getElementById('inp-tpl-name').value.trim();
+      const checkboxes = document.querySelectorAll('.tpl-day:checked');
+      if(!name) { alert('Podaj nazwę dla swojego szablonu.'); return; }
+      if(checkboxes.length === 0) { alert('Musisz zaznaczyć przynajmniej jeden dzień tygodnia.'); return; }
+      const days = Array.from(checkboxes).map(cb => parseInt(cb.value));
+      db.templates.push({ id: 'TPL_' + Date.now(), name, days });
+      document.getElementById('inp-tpl-name').value = '';
+      document.querySelectorAll('.tpl-day').forEach(cb => cb.checked = false);
+      saveDb();
+  }
+
+  function removeDictItem(dictName, index) {
+    if(confirm('Usunąć pozycję ze słownika?')) {
+      db[dictName].splice(index, 1);
+      saveDb();
+    }
+  }
+
+  function removeTemplate(index) {
+      if(confirm('Na pewno usunąć ten szablon?')) {
+          db.templates.splice(index, 1);
+          saveDb();
+      }
+  }
+
+  function getGroupedWastes(wasteList) {
+      const groups = {};
+      wasteList.forEach(w => {
+          const prefixMatch = w.match(/^(\d{2})/);
+          let groupKey = "INNE - Kod niestandardowy";
+          if (prefixMatch && WASTE_GROUPS_DEF[prefixMatch[1]]) {
+              groupKey = WASTE_GROUPS_DEF[prefixMatch[1]];
+          }
+          if(!groups[groupKey]) groups[groupKey] = [];
+          groups[groupKey].push(w);
+      });
+      return groups;
+  }
+
+  function renderDictLists() {
+    ['municipalities'].forEach(d => {
+      const container = document.getElementById(`list-${d}`);
+      container.innerHTML = '';
+      db[d].forEach((item, index) => {
+        container.innerHTML += `<div class="list-item"><span style="font-weight:600;">${item}</span><button class="btn danger small" onclick="removeDictItem('${d}', ${index})">Usuń</button></div>`;
+      });
+    });
+
+    const wasteContainer = document.getElementById('list-wastes');
+    wasteContainer.innerHTML = '';
+    const groupedAllWastes = getGroupedWastes(db.wastes);
+    
+    let wasteListHtml = '';
+    for (let gName in groupedAllWastes) {
+        wasteListHtml += `<details class="waste-group" open><summary>${gName}</summary><div class="waste-group-content">`;
+        groupedAllWastes[gName].forEach(w => {
+            const idx = db.wastes.indexOf(w);
+            wasteListHtml += `
+                <div class="list-item" style="padding: 6px; border-bottom: 1px dashed #e2e8f0;">
+                    <span style="font-weight:600; font-size:13px;">${w}</span>
+                    <button class="btn danger small" onclick="removeDictItem('wastes', ${idx})">Usuń</button>
+                </div>
+            `;
+        });
+        wasteListHtml += `</div></details>`;
+    }
+    wasteContainer.innerHTML = wasteListHtml;
+
+    const cbContainer = document.getElementById('inst-waste-checkboxes');
+    cbContainer.innerHTML = '';
+    if(db.wastes.length === 0) {
+        cbContainer.innerHTML = '<span class="muted" style="font-size:12px;">Najpierw dodaj kody obok.</span>';
+    } else {
+        let cbHtml = '';
+        for (let gName in groupedAllWastes) {
+            cbHtml += `<details class="waste-group" open><summary>${gName}</summary><div class="waste-group-content" style="display:flex; flex-direction:column; gap:4px;">`;
+            groupedAllWastes[gName].forEach(w => {
+                cbHtml += `<label class="checkbox-item"><input type="checkbox" value="${w}" class="inst-waste-cb"> ${w}</label>`;
+            });
+            cbHtml += `</div></details>`;
+        }
+        cbContainer.innerHTML = cbHtml;
+    }
+
+    const vContainer = document.getElementById('list-vehicles');
+    vContainer.innerHTML = '';
+    const vFilterInput = document.getElementById('flt-vehicle');
+    const vFilter = vFilterInput ? vFilterInput.value.toLowerCase() : '';
+
+    db.vehicles.forEach((item, index) => {
+        if(vFilter && !item.sideNumber.toLowerCase().includes(vFilter) && !item.regNumber.toLowerCase().includes(vFilter)) return;
+        
+        const star = item.isFavorite ? '⭐' : '☆';
+        const starTitle = item.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych';
+
+        vContainer.innerHTML += `
+        <div class="list-item">
+          <span>
+            <span style="cursor:pointer; font-size:18px; margin-right:8px;" onclick="toggleVehicleFav(${index})" title="${starTitle}">${star}</span>
+            <span style="font-weight:600;">${item.sideNumber} <span style="color:var(--muted); font-weight:400; font-size:12px;">(${item.regNumber})</span></span>
+          </span>
+          <button class="btn danger small" onclick="removeDictItem('vehicles', ${index})">Usuń</button>
+        </div>`;
+    });
+
+    const drContainer = document.getElementById('list-drivers');
+    drContainer.innerHTML = '';
+    db.drivers.forEach((item, index) => {
+        drContainer.innerHTML += `
+        <div class="list-item">
+          <span>
+            <span style="font-weight:600;">${item.name}</span>
+            <span style="color:var(--muted); font-size:12px; margin-left:8px;">📱 ${item.phone}</span>
+          </span>
+          <button class="btn danger small" onclick="removeDictItem('drivers', ${index})">Usuń</button>
+        </div>`;
+    });
+
+    const iContainer = document.getElementById('list-installations');
+    iContainer.innerHTML = '';
+    db.installations.forEach((item, index) => {
+        const mailDisplay = item.email ? `<span style="color:var(--alba-green); font-size:12px; margin-left:8px;">📧 ${item.email}</span>` : `<span style="color:var(--err); font-size:12px; margin-left:8px;">(Brak e-maila)</span>`;
+        const wastesDisplay = (item.allowedWastes && item.allowedWastes.length > 0) 
+            ? `<div style="font-size:11px; color:var(--muted); margin-top:4px;">Kody: ${item.allowedWastes.join(', ')}</div>` 
+            : `<div style="font-size:11px; color:var(--err); margin-top:4px;">Brak przypisanych kodów!</div>`;
+            
+        iContainer.innerHTML += `
+            <div class="list-item" style="align-items: flex-start;">
+                <div>
+                    <span style="font-weight:600;">${item.name}</span> ${mailDisplay}
+                    ${wastesDisplay}
+                </div>
+                <button class="btn danger small" onclick="removeDictItem('installations', ${index})" style="margin-top: 4px;">Usuń</button>
+            </div>`;
+    });
+  }
+
+  function renderTemplatesList() {
+      const tContainer = document.getElementById('list-templates');
+      tContainer.innerHTML = '';
+      const dayNames = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
+      db.templates.forEach((tpl, index) => {
+          const daysStr = tpl.days.map(d => dayNames[d]).join(', ');
+          tContainer.innerHTML += `
+            <div class="list-item">
+              <span style="font-weight:600;">${tpl.name} <span style="color:var(--alba-green); font-size:12px; margin-left:8px;">(${daysStr})</span></span>
+              <button class="btn danger small" onclick="removeTemplate(${index})">Usuń</button>
+            </div>`;
+      });
+
+      const tplSelect = document.getElementById('sched-frequency');
+      tplSelect.innerHTML = '<option value="">-- Wybierz szablon, by zaznaczyć dni --</option>';
+      db.templates.forEach(tpl => { tplSelect.innerHTML += `<option value="${tpl.id}">${tpl.name}</option>`; });
+      tplSelect.innerHTML += '<option value="clear">❌ Wyczyść całe zaznaczenie</option>';
+  }
+
+  function buildWasteOptionsHtml(allowedWastesList) {
+      let html = '<option value="">-- Wybierz --</option>';
+      const grouped = getGroupedWastes(allowedWastesList);
+      
+      for (let gName in grouped) {
+          html += `<optgroup label="${gName}">`;
+          grouped[gName].forEach(w => {
+              html += `<option value="${w}">${w}</option>`;
+          });
+          html += `</optgroup>`;
+      }
+      return html;
+  }
+
+  function getVehicleOptionsHtml() {
+      let favs = db.vehicles.filter(v => v.isFavorite);
+      let others = db.vehicles.filter(v => !v.isFavorite);
+      
+      let html = '<option value="">-- Wybierz --</option>';
+      if (favs.length > 0) {
+          html += '<optgroup label="⭐ Ulubione">';
+          favs.forEach(v => html += `<option value="${v.sideNumber}">${v.sideNumber} (${v.regNumber})</option>`);
+          html += '</optgroup>';
+      }
+      if (others.length > 0) {
+          html += '<optgroup label="Pozostałe pojazdy">';
+          others.forEach(v => html += `<option value="${v.sideNumber}">${v.sideNumber} (${v.regNumber})</option>`);
+          html += '</optgroup>';
+      }
+      return html;
+  }
+
+  function updateDropdowns(prefix, changedElem) {
+      const instSelect = document.getElementById(`${prefix}-installation`);
+      const wasteSelect = document.getElementById(`${prefix}-waste`);
+      
+      const currentInst = instSelect.value;
+      const currentWaste = wasteSelect.value;
+      
+      if (changedElem === 'inst') {
+          let allowedWastes = db.wastes;
+          if (currentInst) {
+              const instObj = db.installations.find(i => i.name === currentInst);
+              if (instObj && instObj.allowedWastes) allowedWastes = instObj.allowedWastes;
+          }
+          wasteSelect.innerHTML = buildWasteOptionsHtml(allowedWastes);
+          if (allowedWastes.includes(currentWaste)) wasteSelect.value = currentWaste;
+      }
+      
+      if (changedElem === 'waste') {
+          instSelect.innerHTML = '<option value="">-- Wybierz --</option>';
+          let allowedInsts = db.installations;
+          if (currentWaste) {
+              allowedInsts = db.installations.filter(i => !i.allowedWastes || i.allowedWastes.includes(currentWaste));
+          }
+          allowedInsts.forEach(i => instSelect.innerHTML += `<option value="${i.name}">${i.name}</option>`);
+          if (allowedInsts.find(i => i.name === currentInst)) instSelect.value = currentInst;
+      }
+  }
+
+  function renderSelectOptions() {
+    document.querySelectorAll('.sel-municipality').forEach(sel => {
+        const prev = sel.value; 
+        sel.innerHTML = '<option value="">-- Wybierz --</option>';
+        db.municipalities.forEach(item => sel.innerHTML += `<option value="${item}">${item}</option>`);
+        if(db.municipalities.includes(prev)) sel.value = prev;
+    });
+
+    document.querySelectorAll('.sel-vehicle').forEach(sel => {
+        const prev = sel.value;
+        sel.innerHTML = getVehicleOptionsHtml();
+        if(db.vehicles.find(v => v.sideNumber === prev)) sel.value = prev;
+    });
+
+    ['adv', 'sched', 'edit-adv'].forEach(prefix => {
+        const instSelect = document.getElementById(`${prefix}-installation`);
+        const wasteSelect = document.getElementById(`${prefix}-waste`);
+        
+        if (instSelect && wasteSelect) {
+            const prevInst = instSelect.value;
+            const prevWaste = wasteSelect.value;
+            
+            instSelect.innerHTML = '<option value="">-- Wybierz --</option>';
+            db.installations.forEach(i => instSelect.innerHTML += `<option value="${i.name}">${i.name}</option>`);
+            
+            wasteSelect.innerHTML = buildWasteOptionsHtml(db.wastes);
+            
+            if(db.installations.find(i => i.name === prevInst)) instSelect.value = prevInst;
+            if(db.wastes.includes(prevWaste)) wasteSelect.value = prevWaste;
+            
+            if (instSelect.value) updateDropdowns(prefix, 'inst');
+            else if (wasteSelect.value) updateDropdowns(prefix, 'waste');
+        }
+    });
+  }
+
+  /* --- AWIZACJE POJEDYNCZE --- */
+  function addAdvice() {
+    const date = document.getElementById('adv-date').value;
+    const vehicle = document.getElementById('adv-vehicle').value;
+    const waste = document.getElementById('adv-waste').value;
+    const installation = document.getElementById('adv-installation').value;
+    const municipality = document.getElementById('adv-municipality').value;
+    const courses = parseInt(document.getElementById('adv-courses').value) || 1;
+    
+    let isTractor = vehicle.toUpperCase().startsWith('R');
+    let returnLoad = isTractor ? document.getElementById('adv-return').checked : false;
+    let loadingOnly = isTractor ? document.getElementById('adv-loading-only').checked : false;
+
+    if(!date || !vehicle || !installation || (!isTractor && !municipality) || (!loadingOnly && !waste)) {
+      alert("Proszę uzupełnić wszystkie pola przed dodaniem awizacji.");
+      return;
+    }
+
+    let finalWaste = loadingOnly ? '' : waste;
+
+    db.advices.push({ id: Date.now().toString(), date, vehicle, waste: finalWaste, installation, municipality, courses, returnLoad, loadingOnly });
+    
+    document.getElementById('adv-courses').value = 1;
+    document.getElementById('adv-return').checked = false;
+    document.getElementById('adv-loading-only').checked = false;
+    toggleWasteReq('adv');
+    saveDb();
+  }
+
+  function renderAdvices() {
+    const selectedDate = document.getElementById('adv-date').value;
+    const tbody = document.getElementById('advices-tbody');
+    tbody.innerHTML = '';
+
+    const filtered = db.advices.filter(a => a.date === selectedDate);
+    if(filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 24px; color:#666;">Brak awizacji na wybrany dzień. Zmień datę lub dodaj nową pozycję.</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(adv => {
+      const vObj = db.vehicles.find(v => v.sideNumber === adv.vehicle);
+      const regDisplay = vObj ? `<br><span style="font-size:11px; color:var(--muted); font-weight:normal;">${vObj.regNumber}</span>` : '';
+      
+      let returnBadge = '-';
+      let waButton = '';
+      let wasteDisplay = adv.waste;
+
+      if (adv.loadingOnly) {
+          wasteDisplay = `<span style="color:var(--muted); font-style:italic;">Sam załadunek</span>`;
+      }
+
+      if (adv.vehicle.toUpperCase().startsWith('R')) {
+          if (!adv.loadingOnly) {
+              returnBadge = adv.returnLoad ? '<span style="background: var(--alba-green-weak); color: var(--alba-green); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">TAK</span>' : '<span style="color:var(--muted); font-size: 11px;">NIE</span>';
+          }
+          waButton = `<button class="btn outline small" style="color:#25D366; border-color:#25D366; margin-right:4px;" onclick="openWaModal('${adv.id}')" title="Wyślij do kierowcy (WhatsApp)">💬</button>`;
+      }
+
+      tbody.innerHTML += `
+        <tr>
+          <td style="font-weight:700;">${adv.date}</td>
+          <td style="color:var(--alba-blue); font-weight:700;">${adv.vehicle} ${regDisplay}</td>
+          <td>${wasteDisplay}</td>
+          <td>${adv.installation}</td>
+          <td>${adv.municipality || '-'}</td>
+          <td style="text-align:center; font-weight:700;">${adv.courses || 1}</td>
+          <td style="text-align:center;">${returnBadge}</td>
+          <td style="text-align:right; white-space:nowrap;">
+            ${waButton}
+            <button class="btn outline small" onclick="openEditModal('${adv.id}')" style="margin-right: 4px;">Edytuj</button>
+            <button class="btn danger small" onclick="removeAdvice('${adv.id}')">Usuń</button>
+          </td>
+        </tr>`;
+    });
+  }
+
+  function removeAdvice(id) {
+    if(confirm('Usunąć tę awizację z kalendarza?')) {
+      db.advices = db.advices.filter(a => a.id !== id);
+      saveDb();
+    }
+  }
+
+  /* --- EDYCJA AWIZACJI --- */
+  function openEditModal(id) {
+      const adv = db.advices.find(a => a.id === id);
+      if (!adv) return;
+      currentEditId = id;
+
+      const instSelect = document.getElementById('edit-adv-installation');
+      const wasteSelect = document.getElementById('edit-adv-waste');
+      
+      instSelect.innerHTML = '<option value="">-- Wybierz --</option>';
+      db.installations.forEach(i => instSelect.innerHTML += `<option value="${i.name}">${i.name}</option>`);
+      
+      wasteSelect.innerHTML = buildWasteOptionsHtml(db.wastes);
+
+      document.getElementById('edit-adv-date').value = adv.date;
+      document.getElementById('edit-adv-vehicle').value = adv.vehicle;
+      document.getElementById('edit-adv-municipality').value = adv.municipality || '';
+      document.getElementById('edit-adv-courses').value = adv.courses || 1;
+      
+      onVehicleChange('edit-adv'); 
+      document.getElementById('edit-adv-return').checked = adv.returnLoad || false;
+      document.getElementById('edit-adv-loading-only').checked = adv.loadingOnly || false;
+      
+      instSelect.value = adv.installation;
+      
+      toggleWasteReq('edit-adv');
+      if (!adv.loadingOnly) {
+          wasteSelect.value = adv.waste;
+      }
+
+      updateDropdowns('edit-adv', 'inst');
+      if (!adv.loadingOnly) {
+          document.getElementById('edit-adv-waste').value = adv.waste;
+      }
+
+      document.getElementById('edit-advice-modal').classList.add('active');
+  }
+
+  function closeEditModal() {
+      document.getElementById('edit-advice-modal').classList.remove('active');
+      currentEditId = null;
+  }
+
+  function saveEditAdvice() {
+      if (!currentEditId) return;
+      
+      const date = document.getElementById('edit-adv-date').value;
+      const vehicle = document.getElementById('edit-adv-vehicle').value;
+      const waste = document.getElementById('edit-adv-waste').value;
+      const installation = document.getElementById('edit-adv-installation').value;
+      const municipality = document.getElementById('edit-adv-municipality').value;
+      const courses = parseInt(document.getElementById('edit-adv-courses').value) || 1;
+      
+      let isTractor = vehicle.toUpperCase().startsWith('R');
+      let returnLoad = isTractor ? document.getElementById('edit-adv-return').checked : false;
+      let loadingOnly = isTractor ? document.getElementById('edit-adv-loading-only').checked : false;
+
+      if(!date || !vehicle || !installation || (!isTractor && !municipality) || (!loadingOnly && !waste)) {
+        alert("Proszę uzupełnić wszystkie wymagane pola przed zapisaniem.");
+        return;
+      }
+
+      let finalWaste = loadingOnly ? '' : waste;
+
+      const advIndex = db.advices.findIndex(a => a.id === currentEditId);
+      if (advIndex !== -1) {
+          db.advices[advIndex] = {
+              id: currentEditId,
+              date, vehicle, waste: finalWaste, installation, municipality, courses, returnLoad, loadingOnly
+          };
+          saveDb();
+          closeEditModal();
+      }
+  }
+
+  /* --- PLANOWANIE MIESIĘCZNE --- */
+  function buildCalendarGrid() {
+      const monthInput = document.getElementById('sched-month').value;
+      if(!monthInput) return;
+      
+      const [year, month] = monthInput.split('-');
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const firstDayDate = new Date(year, month - 1, 1);
+      let firstDayIndex = firstDayDate.getDay(); 
+      firstDayIndex = firstDayIndex === 0 ? 6 : firstDayIndex - 1; 
+
+      const calDays = document.getElementById('cal-days');
+      calDays.innerHTML = '';
+      selectedDaysInMonth.clear();
+      document.getElementById('sched-frequency').value = '';
+
+      for (let i = 0; i < firstDayIndex; i++) {
+          const empty = document.createElement('div');
+          empty.className = 'cal-day empty';
+          calDays.appendChild(empty);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+          const d = document.createElement('div');
+          d.className = 'cal-day';
+          d.innerText = day;
+          d.dataset.day = day;
+          d.dataset.dow = (firstDayIndex + day - 1) % 7; 
+
+          d.onclick = () => toggleCalendarDay(d, day);
+          calDays.appendChild(d);
+      }
+  }
+
+  function toggleCalendarDay(element, dayNumber) {
+      if (selectedDaysInMonth.has(dayNumber)) {
+          selectedDaysInMonth.delete(dayNumber);
+          element.classList.remove('active');
+      } else {
+          selectedDaysInMonth.add(dayNumber);
+          element.classList.add('active');
+      }
+      document.getElementById('sched-frequency').value = ''; 
+  }
+
+  function applyFrequencyPattern() {
+      const patternId = document.getElementById('sched-frequency').value;
+      const allDays = document.querySelectorAll('#cal-days .cal-day:not(.empty)');
+      
+      selectedDaysInMonth.clear();
+      allDays.forEach(d => d.classList.remove('active'));
+
+      if (!patternId || patternId === 'clear') return;
+      const template = db.templates.find(t => t.id === patternId);
+      if(!template) return;
+
+      allDays.forEach(cell => {
+          const dow = parseInt(cell.dataset.dow); 
+          const dayNum = parseInt(cell.dataset.day);
+
+          if (template.days.includes(dow)) {
+              selectedDaysInMonth.add(dayNum);
+              cell.classList.add('active');
+          }
+      });
+  }
+
+  function saveBulkSchedule() {
+      if (selectedDaysInMonth.size === 0) { alert('Zaznacz w kalendarzu dni, w które auto ma wyjechać na ten rejon.'); return; }
+
+      const vehicle = document.getElementById('sched-vehicle').value;
+      const waste = document.getElementById('sched-waste').value;
+      const installation = document.getElementById('sched-installation').value;
+      const municipality = document.getElementById('sched-municipality').value;
+      const monthInput = document.getElementById('sched-month').value;
+      const courses = parseInt(document.getElementById('sched-courses').value) || 1;
+      
+      let isTractor = vehicle && vehicle.toUpperCase().startsWith('R');
+      let returnLoad = isTractor ? document.getElementById('sched-return').checked : false;
+      let loadingOnly = isTractor ? document.getElementById('sched-loading-only').checked : false;
+
+      if(!vehicle || !installation || (!isTractor && !municipality) || (!loadingOnly && !waste)) {
+          alert('Uzupełnij wszystkie wymagane dane trasy (Pojazd, Frakcja, Instalacja, Gmina).'); return;
+      }
+
+      let finalWaste = loadingOnly ? '' : waste;
+      const [year, month] = monthInput.split('-');
+      let addedCount = 0;
+
+      selectedDaysInMonth.forEach(day => {
+          const dd = String(day).padStart(2, '0');
+          const dateStr = `${year}-${month}-${dd}`;
+          const exists = db.advices.find(a => a.date === dateStr && a.vehicle === vehicle && a.waste === finalWaste && a.installation === installation && a.municipality === municipality);
+          
+          if (!exists) {
+              db.advices.push({ id: 'SCH_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 5), date: dateStr, vehicle, waste: finalWaste, installation, municipality, courses, returnLoad, loadingOnly });
+              addedCount++;
+          }
+      });
+
+      if (addedCount > 0) {
+          saveDb();
+          alert(`✅ Pomyślnie dodano ${addedCount} awizacji do kalendarza!`);
+          document.getElementById('sched-frequency').value = 'clear';
+          document.getElementById('sched-courses').value = 1;
+          document.getElementById('sched-return').checked = false;
+          document.getElementById('sched-loading-only').checked = false;
+          toggleWasteReq('sched');
+          applyFrequencyPattern();
+      } else { alert('Awizacje dla tych dni i dla tej trasy już istniały w systemie. Nie dodano duplikatów.'); }
+  }
+
+  /* --- GENERATOR MAILI I OUTLOOK --- */
+  function openBulkEmailModal() {
+    const selectedDate = document.getElementById('adv-date').value;
+    currentFilteredAdvices = db.advices.filter(a => a.date === selectedDate);
+
+    if(currentFilteredAdvices.length === 0) {
+      alert("Brak awizacji na wybrany dzień. Nie ma czego generować.");
+      return;
+    }
+
+    const emailTabs = document.getElementById('email-tabs');
+    emailTabs.innerHTML = '';
+
+    const normalAdvices = currentFilteredAdvices.filter(a => !a.vehicle.toUpperCase().startsWith('R'));
+    const tractorAdvices = currentFilteredAdvices.filter(a => a.vehicle.toUpperCase().startsWith('R'));
+
+    // ZAKŁADKI DLA ŚMIECIAREK
+    if(normalAdvices.length > 0) {
+        const btnAllN = document.createElement('div');
+        btnAllN.className = 'tab-btn email-tab-btn';
+        btnAllN.innerHTML = `Śmieciarki Zbiorcze (${normalAdvices.length})`;
+        btnAllN.onclick = () => selectEmailTab({type: 'NORMAL', inst: 'ALL'}, btnAllN);
+        emailTabs.appendChild(btnAllN);
+
+        const uniqueInstN = [...new Set(normalAdvices.map(a => a.installation))];
+        uniqueInstN.forEach(inst => {
+            const count = normalAdvices.filter(a => a.installation === inst).length;
+            const btnInst = document.createElement('div');
+            btnInst.className = 'tab-btn email-tab-btn';
+            btnInst.innerHTML = `Śmieciarki - ${inst} (${count})`;
+            btnInst.onclick = () => selectEmailTab({type: 'NORMAL', inst: inst}, btnInst);
+            emailTabs.appendChild(btnInst);
+        });
+    }
+
+    // ZAKŁADKI DLA CIĄGNIKÓW
+    if(tractorAdvices.length > 0) {
+        const uniqueInstT = [...new Set(tractorAdvices.map(a => a.installation))];
+        uniqueInstT.forEach(inst => {
+            const count = tractorAdvices.filter(a => a.installation === inst).length;
+            const btnInst = document.createElement('div');
+            btnInst.className = 'tab-btn email-tab-btn';
+            btnInst.innerHTML = `Ciągniki - ${inst} (${count})`;
+            btnInst.onclick = () => selectEmailTab({type: 'TRACTOR', inst: inst}, btnInst);
+            emailTabs.appendChild(btnInst);
+        });
+    }
+
+    // Automatyczny wybór pierwszej zakładki
+    const firstTab = emailTabs.querySelector('.email-tab-btn');
+    if (firstTab) firstTab.click();
+
+    document.getElementById('email-modal').classList.add('active');
+  }
+
+  function selectEmailTab(targetObj, clickedBtn) {
+    document.querySelectorAll('.email-tab-btn').forEach(b => b.classList.remove('active'));
+    clickedBtn.classList.add('active');
+    currentEmailTargetObj = targetObj;
+    
+    let listToRender = targetObj.type === 'NORMAL' 
+        ? currentFilteredAdvices.filter(a => !a.vehicle.toUpperCase().startsWith('R'))
+        : currentFilteredAdvices.filter(a => a.vehicle.toUpperCase().startsWith('R'));
+        
+    if (targetObj.inst !== 'ALL') {
+        listToRender = listToRender.filter(a => a.installation === targetObj.inst);
+    }
+
+    let mailText = "Dzień dobry,\n\n";
+
+    if (targetObj.type === 'NORMAL') {
+        mailText += "Proszę o awizację poniższych pojazdów";
+        mailText += targetObj.inst !== 'ALL' ? ` do instalacji ${targetObj.inst}:\n\n` : ":\n\n";
+        
+        listToRender.forEach((adv, index) => {
+            const vObj = db.vehicles.find(v => v.sideNumber === adv.vehicle);
+            const regNumber = vObj ? vObj.regNumber : adv.vehicle;
+            const coursesText = (adv.courses && adv.courses > 1) ? ` (Liczba kursów: ${adv.courses})` : '';
+            
+            if (targetObj.inst !== 'ALL') {
+                mailText += `${index + 1}. Pojazd ${regNumber}, odpad ${adv.waste} z gminy ${adv.municipality}${coursesText}.\n`;
+            } else {
+                mailText += `${index + 1}. Pojazd ${regNumber} do ${adv.installation}, odpad ${adv.waste} z gminy ${adv.municipality}${coursesText}.\n`;
+            }
+        });
+    } else {
+        // TRACTOR FORMAT
+        if (listToRender.length === 1) {
+            mailText += `Dzisiaj przyjedzie auto:\n\n`;
+        } else {
+            mailText += `Dzisiaj przyjadą poniższe auta:\n\n`;
+        }
+
+        listToRender.forEach((adv, index) => {
+            const vObj = db.vehicles.find(v => v.sideNumber === adv.vehicle);
+            const regNumber = vObj ? vObj.regNumber : adv.vehicle;
+            const bdo = db.settings.bdo || '.000002996';
+            
+            mailText += `Nr boczny WPO: ${adv.vehicle} | Nr rej.: ${regNumber} | nr BDO transportującego: ${bdo}\n\n`;
+            
+            if (adv.loadingOnly) {
+                mailText += `Pojazd podstawi się na załadunek selektywnej.\n\n`;
+            } else {
+                let returnText = adv.returnLoad ? ", podstawi się również do załadunku selektywnej." : ".";
+                mailText += `Odpad ${adv.waste}${returnText}\n\n`;
+            }
+        });
+    }
+
+    document.getElementById('email-content').value = mailText.trim();
+  }
+
+  function closeModal() { document.getElementById('email-modal').classList.remove('active'); }
+
+  function copyEmail() {
+    const el = document.getElementById('email-content');
+    el.select();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(el.value).then(() => {
+        const btn = document.querySelector('.modal .btn.outline:nth-child(2)');
+        const origText = btn.innerHTML;
+        btn.innerHTML = "✅ Skopiowano!";
+        setTimeout(() => { btn.innerHTML = origText; }, 2000);
+      });
+    } else document.execCommand('copy');
+  }
+
+  function openMailClient() {
+      const content = document.getElementById('email-content').value;
+      const date = document.getElementById('adv-date').value;
+      
+      let toEmail = '';
+      let subject = '';
+      
+      const typeLabel = currentEmailTargetObj.type === 'NORMAL' ? 'Śmieciarki' : 'Ciągniki';
+      
+      if (currentEmailTargetObj.inst === 'ALL') {
+          subject = `Awizacje zbiorcze WPO ALBA (${typeLabel}) - ${date}`;
+      } else {
+          subject = `Awizacja pojazdów WPO ALBA (${typeLabel}) - ${currentEmailTargetObj.inst} - ${date}`;
+          // POBIERANIE ADRESU E-MAIL Z BAZY
+          const instObj = db.installations.find(i => i.name === currentEmailTargetObj.inst);
+          if (instObj && instObj.email) {
+              toEmail = instObj.email.replace(/\s*[;,]\s*/g, ';');
+          }
+      }
+
+      const mailtoLink = `mailto:${toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content)}`;
+      window.location.href = mailtoLink;
+  }
+
+  function downloadOutlookEml() {
+      const content = document.getElementById('email-content').value;
+      const date = document.getElementById('adv-date').value;
+      
+      let toEmail = '';
+      let subject = '';
+      
+      const typeLabel = currentEmailTargetObj.type === 'NORMAL' ? 'Śmieciarki' : 'Ciągniki';
+      
+      if (currentEmailTargetObj.inst === 'ALL') {
+          subject = `Awizacje zbiorcze WPO ALBA (${typeLabel}) - ${date}`;
+      } else {
+          subject = `Awizacja pojazdów WPO ALBA (${typeLabel}) - ${currentEmailTargetObj.inst} - ${date}`;
+          // POBIERANIE ADRESU E-MAIL Z BAZY
+          const instObj = db.installations.find(i => i.name === currentEmailTargetObj.inst);
+          if (instObj && instObj.email) {
+              toEmail = instObj.email.replace(/\s*[;,]\s*/g, ', ');
+          }
+      }
+
+      const encodedSubject = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+      const emlContent = `To: ${toEmail}\r\nSubject: ${encodedSubject}\r\nX-Unsent: 1\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${content}`;
+
+      const blob = new Blob([emlContent], { type: 'message/rfc822' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${subject.replace(/[^a-zA-Z0-9\s-]/g, '_').trim()}.eml`; 
+      
+      document.body.appendChild(a);
+      a.click();
+      
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>
